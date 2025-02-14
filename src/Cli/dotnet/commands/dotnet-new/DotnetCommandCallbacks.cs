@@ -1,19 +1,12 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-#nullable enable
-
-using Microsoft.DotNet.Tools.Add.PackageReference;
-using Microsoft.DotNet.Tools;
-using System.Collections.Generic;
-using System.CommandLine;
-using System.Linq;
+using Microsoft.DotNet.Cli;
 using Microsoft.DotNet.Tools.Common;
-using Microsoft.DotNet.Tools.Add.ProjectToProjectReference;
+using Microsoft.DotNet.Tools.Package.Add;
+using Microsoft.DotNet.Tools.Reference.Add;
 using Microsoft.DotNet.Tools.Restore;
 using Microsoft.DotNet.Tools.Sln.Add;
-using Microsoft.DotNet.Cli;
 
 namespace Microsoft.DotNet.Tools.New
 {
@@ -25,7 +18,7 @@ namespace Microsoft.DotNet.Tools.New
             IEnumerable<string> commandArgs = new[] { "add", projectPath, "package", packageName };
             if (!string.IsNullOrWhiteSpace(version))
             {
-                commandArgs = commandArgs.Append(AddPackageParser.VersionOption.Aliases.First()).Append(version);
+                commandArgs = commandArgs.Append(PackageAddCommandParser.VersionOption.Name).Append(version);
             }
             var addPackageReferenceCommand = new AddPackageReferenceCommand(AddCommandParser.GetCommand().Parse(commandArgs.ToArray()));
             return addPackageReferenceCommand.Execute() == 0;
@@ -43,22 +36,23 @@ namespace Microsoft.DotNet.Tools.New
         internal static bool RestoreProject(string pathToRestore)
         {
             PathUtility.EnsureAllPathsExist(new[] { pathToRestore }, CommonLocalizableStrings.FileNotFound, allowDirectories: true);
-            return RestoreCommand.Run(new string[] { pathToRestore }) == 0;
+            // for the implicit restore we do not want the terminal logger to emit any output unless there are errors
+            return RestoreCommand.Run([pathToRestore, "-tlp:verbosity=quiet"]) == 0;
         }
 
         internal static bool AddProjectsToSolution(string solutionPath, IReadOnlyList<string> projectsToAdd, string? solutionFolder, bool? inRoot)
         {
             PathUtility.EnsureAllPathsExist(new[] { solutionPath }, CommonLocalizableStrings.FileNotFound, allowDirectories: false);
             PathUtility.EnsureAllPathsExist(projectsToAdd, CommonLocalizableStrings.FileNotFound, allowDirectories: false);
-            IEnumerable<string> commandArgs = new[] { "sln", solutionPath, "add" }.Concat(projectsToAdd);
+            IEnumerable<string> commandArgs = new[] { "solution", solutionPath, "add" }.Concat(projectsToAdd);
             if (!string.IsNullOrWhiteSpace(solutionFolder))
             {
-                commandArgs = commandArgs.Append(SlnAddParser.SolutionFolderOption.Aliases.First()).Append(solutionFolder);
+                commandArgs = commandArgs.Append(SlnAddParser.SolutionFolderOption.Name).Append(solutionFolder);
             }
 
             if (inRoot is true)
             {
-                commandArgs = commandArgs.Append(SlnAddParser.InRootOption.Aliases.First());
+                commandArgs = commandArgs.Append(SlnAddParser.InRootOption.Name);
             }
             var addProjectToSolutionCommand = new AddProjectToSolutionCommand(SlnCommandParser.GetCommand().Parse(commandArgs.ToArray()));
             return addProjectToSolutionCommand.Execute() == 0;

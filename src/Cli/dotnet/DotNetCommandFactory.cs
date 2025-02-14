@@ -1,11 +1,8 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
 using System.CommandLine.Invocation;
 using System.Diagnostics;
-using System.Linq;
 using Microsoft.DotNet.Cli.Utils;
 using Microsoft.DotNet.CommandFactory;
 using NuGet.Frameworks;
@@ -15,17 +12,19 @@ namespace Microsoft.DotNet.Cli
     public class DotNetCommandFactory : ICommandFactory
     {
         private bool _alwaysRunOutOfProc;
+        private readonly string _currentWorkingDirectory;
 
-        public DotNetCommandFactory(bool alwaysRunOutOfProc = false)
+        public DotNetCommandFactory(bool alwaysRunOutOfProc = false, string currentWorkingDirectory = null)
         {
             _alwaysRunOutOfProc = alwaysRunOutOfProc;
+            _currentWorkingDirectory = currentWorkingDirectory;
         }
 
         public ICommand Create(
-        	string commandName, 
-        	IEnumerable<string> args, 
-        	NuGetFramework framework = null, 
-        	string configuration = Constants.DefaultConfiguration)
+            string commandName,
+            IEnumerable<string> args,
+            NuGetFramework framework = null,
+            string configuration = Constants.DefaultConfiguration)
         {
             if (!_alwaysRunOutOfProc && TryGetBuiltInCommand(commandName, out var builtInCommand))
             {
@@ -35,15 +34,15 @@ namespace Microsoft.DotNet.Cli
                 return new BuiltInCommand(commandName, args, builtInCommand);
             }
 
-            return CommandFactoryUsingResolver.CreateDotNet(commandName, args, framework, configuration);
+            return CommandFactoryUsingResolver.CreateDotNet(commandName, args, framework, configuration, _currentWorkingDirectory);
         }
 
         private bool TryGetBuiltInCommand(string commandName, out Func<string[], int> commandFunc)
         {
             var command = Parser.GetBuiltInCommand(commandName);
-            if (command != null && command.Handler != null)
+            if (command?.Action is AsynchronousCliAction action)
             {
-                commandFunc = (args) => command.Handler.InvokeAsync(new InvocationContext(Parser.Instance.Parse(args))).Result;
+                commandFunc = (args) => action.InvokeAsync(Parser.Instance.Parse(args)).Result;
                 return true;
             }
             commandFunc = null;

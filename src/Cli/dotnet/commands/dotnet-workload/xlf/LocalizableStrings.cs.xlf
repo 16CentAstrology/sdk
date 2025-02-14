@@ -22,6 +22,11 @@
         <target state="translated">Nejsou k dispozici žádné nainstalované úlohy, které by se daly zobrazit.</target>
         <note />
       </trans-unit>
+      <trans-unit id="ShouldInstallAWorkloadSet">
+        <source>Workloads are configured to install and update using workload versions, but none were found. Run "dotnet workload restore" to install a workload version.</source>
+        <target state="translated">Úlohy jsou nakonfigurované tak, aby se instalovaly a aktualizovaly pomocí verzí úloh, ale žádná nebyla nalezena. Spusťte příkaz dotnet workload restore a nainstalujte verzi úlohy.</target>
+        <note>{Locked="dotnet workload restore"}</note>
+      </trans-unit>
       <trans-unit id="SkipSignCheckInvalidOption">
         <source>Unable to bypass signature verification. The specified option conflicts with a global policy.</source>
         <target state="translated">Nepovedlo se obejít ověření podpisu. Zadaná možnost je v konfliktu s globálními zásadami.</target>
@@ -47,7 +52,17 @@
         <target state="translated">Typ instalace</target>
         <note />
       </trans-unit>
-      <trans-unit id="WorkloadManfiestVersionColumn">
+      <trans-unit id="WorkloadIntegrityCheck">
+        <source>Checking the state of installed workloads...</source>
+        <target state="translated">Kontroluje se stav nainstalovaných úloh...</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="WorkloadIntegrityCheckError">
+        <source>An issue was encountered verifying workloads. For more information, run "dotnet workload update".</source>
+        <target state="translated">Při ověřování úloh došlo k problému. Další informace získáte spuštěním příkazu „dotnet workload update“.</target>
+        <note>{Locked="dotnet workload update"}</note>
+      </trans-unit>
+      <trans-unit id="WorkloadManifestVersionColumn">
         <source>Manifest Version</source>
         <target state="translated">Verze manifestu</target>
         <note />
@@ -57,9 +72,29 @@
         <target state="translated">Cesta manifestu</target>
         <note />
       </trans-unit>
+      <trans-unit id="WorkloadSetFromGlobalJsonNotInstalled">
+        <source>Workload version {0}, which was specified in {1}, was not found. Run "dotnet workload restore" to install this workload version.</source>
+        <target state="translated">Verze {0} úlohy, která byla zadána v {1}, nebyla nalezena. Spuštěním příkazu dotnet workload restore nainstalujte tuto verzi úlohy.</target>
+        <note>{Locked="dotnet workload restore"}</note>
+      </trans-unit>
       <trans-unit id="WorkloadSourceColumn">
         <source>Installation Source</source>
         <target state="translated">Zdroj instalace</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="WorkloadVersionDescription">
+        <source>Display the currently installed workload version.</source>
+        <target state="translated">Zobrazí aktuálně nainstalovanou verzi úlohy.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="WriteCLIRecordForVisualStudioWorkloadMessage">
+        <source>Writing install records for Visual Studio workloads: '{0}'</source>
+        <target state="translated">Probíhá zápis záznamů o instalaci pro úlohy sady Visual Studio: {0}</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="WorkloadManifestInstallationConfiguration">
+        <source>Configured to use {0} when installing new manifests.</source>
+        <target state="translated">Nakonfigurováno pro použití {0} při instalaci nových manifestů</target>
         <note />
       </trans-unit>
     </body>

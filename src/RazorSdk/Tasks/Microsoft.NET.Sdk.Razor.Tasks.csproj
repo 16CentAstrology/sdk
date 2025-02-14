@@ -4,6 +4,9 @@
     <RazorSdkRoot>$(RepoRoot)\src\RazorSdk\</RazorSdkRoot>
     <PackageId>Microsoft.NET.Sdk.Razor</PackageId>
     <OutDirName>$(Configuration)\Sdks\$(PackageId)\tasks</OutDirName>
+
+    <!-- Avoid https://github.com/dotnet/arcade/issues/9305 -->
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
   </PropertyGroup>
 
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
@@ -36,11 +39,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Build.Framework" Version="$(MicrosoftBuildFrameworkPackageVersion)" ExcludeAssets="Runtime" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="$(MicrosoftBuildUtilitiesCorePackageVersion)" ExcludeAssets="Runtime" />
-    <PackageReference Include="System.Reflection.Metadata" Version="$(SystemReflectionMetadataVersion)" Condition="'$(TargetFramework)'=='net472'" />
-    <PackageReference Include="System.Text.Json" Version="$(SystemTextJsonVersion)" Condition="'$(TargetFramework)'=='net472'" />
-    <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="$(MicrosoftExtensionsFileSystemGlobbingPackageVersion)" />
+    <PackageReference Include="Microsoft.Build.Framework" ExcludeAssets="Runtime" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" ExcludeAssets="Runtime" />
+    <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
+    <PackageReference Include="System.Reflection.Metadata" VersionOverride="$(SystemReflectionMetadataToolsetPackageVersion)" />
+    <PackageReference Include="System.Text.Json" VersionOverride="$(SystemTextJsonToolsetPackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>

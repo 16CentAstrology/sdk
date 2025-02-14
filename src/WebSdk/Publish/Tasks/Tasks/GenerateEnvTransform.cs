@@ -1,26 +1,23 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Xml.Linq;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using Microsoft.Build.Framework;
-using Microsoft.Build.Utilities;
 
 namespace Microsoft.NET.Sdk.Publish.Tasks
 {
     public class GenerateEnvTransform : Task
     {
         [Required]
-        public string WebConfigEnvironmentVariables { get; set; }
+        public string? WebConfigEnvironmentVariables { get; set; }
 
         [Required]
-        public string[] EnvTransformTemplatePaths { get; set; }
+        public string[]? EnvTransformTemplatePaths { get; set; }
 
         [Required]
-        public string PublishTempDirectory { get; set; }
+        public string? PublishTempDirectory { get; set; }
 
         [Output]
-        public string[] GeneratedTransformFullPaths { get; set; }
+        public string[]? GeneratedTransformFullPaths { get; set; }
 
         public override bool Execute()
         {
@@ -32,16 +29,16 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
 
             bool isSuccess = true;
 
-            List<string> generatedFiles = new List<string>();
-            foreach (var envTransformTemplatePath in EnvTransformTemplatePaths)
+            List<string> generatedFiles = new();
+            foreach (var envTransformTemplatePath in EnvTransformTemplatePaths ?? Array.Empty<string>())
             {
                 if (File.Exists(envTransformTemplatePath))
                 {
                     string templateContent = File.ReadAllText(envTransformTemplatePath);
                     XDocument templateContentDocument = XDocument.Parse(templateContent);
 
-                    XDocument envTransformDoc = GenerateEnvTransformDocument(templateContentDocument, WebConfigEnvironmentVariables);
-                    if (envTransformDoc != null)
+                    XDocument? envTransformDoc = GenerateEnvTransformDocument(templateContentDocument, WebConfigEnvironmentVariables);
+                    if (envTransformDoc is not null && PublishTempDirectory is not null)
                     {
                         string generatedTransformFileName = Path.Combine(PublishTempDirectory, Path.GetFileName(envTransformTemplatePath));
                         envTransformDoc.Save(generatedTransformFileName, SaveOptions.None);
@@ -54,9 +51,9 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
             return isSuccess;
         }
 
-        public XDocument GenerateEnvTransformDocument(XDocument templateContentDocument, string webConfigEnvironmentVariables)
+        public XDocument? GenerateEnvTransformDocument(XDocument templateContentDocument, string? webConfigEnvironmentVariables)
         {
-            if (string.IsNullOrEmpty(webConfigEnvironmentVariables))
+            if (webConfigEnvironmentVariables is null || webConfigEnvironmentVariables.Length == 0)
             {
                 return null;
             }
@@ -88,7 +85,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
             return updatedContent;
         }
 
-        public List<KeyValuePair<string, string>> GetEnvironmentVariables(string webConfigEnvironmentVariables)
+        public List<KeyValuePair<string, string>>? GetEnvironmentVariables(string webConfigEnvironmentVariables)
         {
             if (string.IsNullOrEmpty(webConfigEnvironmentVariables))
             {

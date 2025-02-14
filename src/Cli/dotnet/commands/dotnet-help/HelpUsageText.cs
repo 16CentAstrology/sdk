@@ -1,5 +1,5 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.DotNet.Tools.Help;
 
@@ -27,30 +27,29 @@ path-to-application:
 
 sdk-options:
   -d|--diagnostics  {LocalizableStrings.SDKDiagnosticsCommandDefinition}
-  -h|--help         {LocalizableStrings.HelpDefinition}
+  -h|--help         {LocalizableStrings.SDKOptionsHelpDefinition}
   --info            {LocalizableStrings.SDKInfoCommandDefinition}
   --list-runtimes   {LocalizableStrings.SDKListRuntimesCommandDefinition}
   --list-sdks       {LocalizableStrings.SDKListSdksCommandDefinition}
   --version         {LocalizableStrings.SDKVersionCommandDefinition}
 
 {LocalizableStrings.Commands}:
-  add               {LocalizableStrings.AddDefinition}
   build             {LocalizableStrings.BuildDefinition}
   build-server      {LocalizableStrings.BuildServerDefinition}
   clean             {LocalizableStrings.CleanDefinition}
   format            {LocalizableStrings.FormatDefinition}
   help              {LocalizableStrings.HelpDefinition}
-  list              {LocalizableStrings.ListDefinition}
   msbuild           {LocalizableStrings.MsBuildDefinition}
   new               {LocalizableStrings.NewDefinition}
   nuget             {LocalizableStrings.NugetDefinition}
   pack              {LocalizableStrings.PackDefinition}
+  package           {LocalizableStrings.PackageDefinition}
   publish           {LocalizableStrings.PublishDefinition}
-  remove            {LocalizableStrings.RemoveDefinition}
+  reference         {LocalizableStrings.ReferenceDefinition}
   restore           {LocalizableStrings.RestoreDefinition}
   run               {LocalizableStrings.RunDefinition}
   sdk               {LocalizableStrings.SdkDefinition}
-  sln               {LocalizableStrings.SlnDefinition}
+  solution          {LocalizableStrings.SlnDefinition}
   store             {LocalizableStrings.StoreDefinition}
   test              {LocalizableStrings.TestDefinition}
   tool              {LocalizableStrings.ToolDefinition}

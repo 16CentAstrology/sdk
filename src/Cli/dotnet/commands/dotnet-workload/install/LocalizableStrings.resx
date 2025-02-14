@@ -199,7 +199,7 @@
     <value>Installing pack {0} version {1}...</value>
   </data>
   <data name="DownloadingPackToCacheMessage" xml:space="preserve">
-    <value>Downloading pack {0} version {1} to offline cache {2}…</value>
+    <value>Downloading pack {0} version {1} to offline cache {2}...</value>
   </data>
   <data name="WorkloadPackAlreadyInstalledMessage" xml:space="preserve">
     <value>Pack {0} version {1} is already installed.</value>
@@ -237,14 +237,11 @@
   <data name="AdManifestPackageDoesNotExist" xml:space="preserve">
     <value>Advertising manifest not updated. Manifest package for {0} doesn't exist.</value>
   </data>
-  <data name="ManifestDoesNotExist" xml:space="preserve">
-    <value>No manifest with ID {0} exists.</value>
-  </data>
   <data name="FailedToInstallWorkloadManifest" xml:space="preserve">
     <value>Failed to install manifest {0} version {1}: {2}.</value>
   </data>
   <data name="InstallingWorkloadManifest" xml:space="preserve">
-    <value>Installing workload manifest {0} version {1}…</value>
+    <value>Installing workload manifest {0} version {1}...</value>
   </data>
   <data name="IncludePreviewOptionDescription" xml:space="preserve">
     <value>Allow prerelease workload manifests.</value>
@@ -262,16 +259,17 @@
     <value>MSI installations are only supported on Windows.</value>
   </data>
   <data name="DeletingWorkloadPack" xml:space="preserve">
-    <value>Uninstalling workload pack {0} version {1}…</value>
+    <value>Uninstalling workload pack {0} version {1}...</value>
+  </data>
+  <data name="DeletingWorkloadManifest" xml:space="preserve">
+    <value>Uninstalling workload manifest {0} version {1}...</value>
   </data>
   <data name="SkippingManifestUpdate" xml:space="preserve">
     <value>Manifest packages were not found. Skipping manifest update...</value>
   </data>
-  <data name="NoManifestsExistForFeatureBand" xml:space="preserve">
-    <value>No manifests exist for SDK version {0}.</value>
-  </data>
-  <data name="IncompatibleManifests" xml:space="preserve">
-    <value>The current SDK isn't compatible with workload manifests of SDK version {0}.</value>
+  <data name="SdkVersionOptionNotSupported" xml:space="preserve">
+    <value>The --sdk-version option is no longer supported for this command.</value>
+    <comment>{Locked="--sdk-version"}</comment>
   </data>
   <data name="InadequatePermissions" xml:space="preserve">
     <value>Inadequate permissions. Run the command with elevated privileges.</value>
@@ -298,7 +296,7 @@
     <value>Workload updates are available. Run `dotnet workload list` for more information.</value>
   </data>
   <data name="PendingReboot" xml:space="preserve">
-    <value>The machine has a pending reboot. Installation will continue, but you may need to restart.</value>
+    <value>The machine has a pending reboot. The workload operation will continue, but you may need to restart.</value>
   </data>
   <data name="MsiProgressInstall" xml:space="preserve">
     <value>Installing {0} </value>
@@ -324,11 +322,18 @@
   <data name="CannotCombineSkipManifestAndRollback" xml:space="preserve">
     <value>Cannot use the {0} and {1} options together. If installing from a rollback file, remove {0}. Otherwise, remove {1}</value>
   </data>
+  <data name="CannotCombineSkipManifestAndVersion" xml:space="preserve">
+    <value>Cannot use the {0} and {1} options together.  Remove one of the options.</value>
+  </data>
+  <data name="CannotUseSkipManifestWithGlobalJsonWorkloadVersion" xml:space="preserve">
+    <value>Cannot use the {0} option when workload version is specified in global.json.  Remove the {0} option, or remove the 'workloadVersion' element from {1}.</value>
+    <comment>{Locked="workloadVersion"} Locked={"global.json"}</comment>
+  </data>
   <data name="SkipSignCheckOptionDescription" xml:space="preserve">
     <value>Skip signature verification of workload packages and installers.</value>
   </data>
   <data name="CheckForUpdatedWorkloadManifests" xml:space="preserve">
-    <value>Checking for updated workload manifests.</value>
+    <value>Checking for updated workload version.</value>
   </data>
   <data name="InvalidVersionForWorkload" xml:space="preserve">
     <value>Error parsing version '{1}' for workload manifest ID '{0}'</value>
@@ -341,5 +346,27 @@
   </data>
   <data name="ManifestMsiNotFoundInNuGetPackage" xml:space="preserve">
     <value>Manifest MSI not found in NuGet package {0}</value>
+  </data>
+  <data name="WorkloadSetVersionOptionDescription" xml:space="preserve">
+    <value>A workload version to display or one or more workloads and their versions joined by the '@' character.</value>
+  </data>
+  <data name="NewWorkloadSet" xml:space="preserve">
+    <value>Installing workload version {0}.</value>
+  </data>
+  <data name="DeletingWorkloadSet" xml:space="preserve">
+    <value>Deleting workload version {0}.</value>
+  </data>
+  <data name="CannotSpecifyVersionOnCommandLineAndInGlobalJson" xml:space="preserve">
+    <value>Cannot specify a particular workload version on the command line via --version or --from-history when there is already a version specified in global.json file {0}. To update the globally installed workload version, run the command outside of the path containing that global.json file or update the version specified in the global.json file and run "dotnet workload update."</value>
+  </data>
+  <data name="UpdatedWorkloadMode" xml:space="preserve">
+    <value>Successfully updated workload install mode to use {0}.</value>
+  </data>
+  <data name="FailedToInstallWorkloadSet" xml:space="preserve">
+    <value>Failed to install workload version {0}: {1}</value>
+  </data>
+  <data name="CannotSpecifyVersionAndWorkloadIdsByComponent" xml:space="preserve">
+    <value>Cannot specify a workload version using the --version option while also specifying versions to install using workload@version syntax.</value>
+    <comment>{Locked="--version"}</comment>
   </data>
 </root>

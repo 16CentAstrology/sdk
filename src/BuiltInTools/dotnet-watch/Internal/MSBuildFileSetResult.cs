@@ -1,57 +1,44 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 
-namespace Microsoft.DotNet.Watcher.Internal
+namespace Microsoft.DotNet.Watch
 {
     [DataContract]
     internal sealed class MSBuildFileSetResult
     {
         [DataMember]
-        public string RunCommand { get; init; }
-
-        [DataMember]
-        public string RunArguments { get; init; }
-
-        [DataMember]
-        public string RunWorkingDirectory { get; init; }
-
-        [DataMember]
-        public bool IsNetCoreApp { get; init; }
-
-        [DataMember]
-        public string TargetFrameworkVersion { get; init; }
-
-        [DataMember]
-        public string RuntimeIdentifier { get; init; }
-
-        [DataMember]
-        public string DefaultAppHostRuntimeIdentifier { get; init; }
-
-        [DataMember]
-        public Dictionary<string, ProjectItems> Projects { get; init; }
+        public required Dictionary<string, ProjectItems> Projects { get; init; }
     }
 
     [DataContract]
     internal sealed class ProjectItems
     {
-        [DataMember]
-        public List<string> Files { get; init; } = new();
+        public HashSet<string> FileSetBuilder { get; init; } = [];
+        public Dictionary<string, string> StaticFileSetBuilder { get; init; } = [];
 
         [DataMember]
-        public List<StaticFileItem> StaticFiles { get; init; } = new();
+        public List<string> Files { get; init; } = [];
+
+        [DataMember]
+        public List<StaticFileItem> StaticFiles { get; init; } = [];
+
+        public void PrepareForSerialization()
+        {
+            Files.AddRange(FileSetBuilder);
+            StaticFiles.AddRange(StaticFileSetBuilder
+                .Select(entry => new StaticFileItem() { FilePath = entry.Key, StaticWebAssetPath = entry.Value }));
+        }
     }
 
     [DataContract]
     internal sealed class StaticFileItem
     {
         [DataMember]
-        public string FilePath { get; init; }
+        public required string FilePath { get; init; }
 
         [DataMember]
-        public string StaticWebAssetPath { get; init; }
+        public required string StaticWebAssetPath { get; init; }
     }
 }

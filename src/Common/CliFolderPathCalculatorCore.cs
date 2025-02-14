@@ -1,14 +1,5 @@
-// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System;
-using System.IO;
-using System.Runtime.InteropServices;
-
-//only Microsoft.DotNet.MSBuildSdkResolver (net7.0) has nullables enabled
-#pragma warning disable IDE0240 // Remove redundant nullable directive
-#nullable enable
-#pragma warning restore IDE0240 // Remove redundant nullable directive
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 namespace Microsoft.DotNet.Configurer
 {
@@ -16,8 +7,6 @@ namespace Microsoft.DotNet.Configurer
     {
         public const string DotnetHomeVariableName = "DOTNET_CLI_HOME";
         public const string DotnetProfileDirectoryName = ".dotnet";
-        public static readonly string PlatformHomeVariableName =
-            RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "USERPROFILE" : "HOME";
 
         public static string? GetDotnetUserProfileFolderPath()
         {
@@ -35,14 +24,10 @@ namespace Microsoft.DotNet.Configurer
             var home = Environment.GetEnvironmentVariable(DotnetHomeVariableName);
             if (string.IsNullOrEmpty(home))
             {
-                home = Environment.GetEnvironmentVariable(PlatformHomeVariableName);
+                home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 if (string.IsNullOrEmpty(home))
                 {
-                    home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                    if (string.IsNullOrEmpty(home))
-                    {
-                        return null;
-                    }
+                    return null;
                 }
             }
 

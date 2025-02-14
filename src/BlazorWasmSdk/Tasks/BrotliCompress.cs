@@ -1,12 +1,9 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
+#nullable disable
+
+using System.IO.Hashing;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 
@@ -123,11 +120,9 @@ namespace Microsoft.NET.Sdk.BlazorWebAssembly
         internal static string CalculateTargetPath(string relativePath, string extension)
         {
             // RelativePath can be long and if used as-is to write the output, might result in long path issues on Windows.
-            // Instead we'll calculate a fixed length path by hashing the input file name. This uses SHA1 similar to the Hash task in MSBuild
-            // since it has no crytographic significance.
-            using var hash = SHA1.Create();
+            // Instead we'll calculate a fixed length path by hashing the input file name. This uses xXHash3 since it has no crytographic significance.
             var bytes = Encoding.UTF8.GetBytes(relativePath);
-            var hashString = Convert.ToBase64String(hash.ComputeHash(bytes));
+            var hashString = Convert.ToBase64String(XxHash3.Hash(bytes));
 
             var builder = new StringBuilder();
 

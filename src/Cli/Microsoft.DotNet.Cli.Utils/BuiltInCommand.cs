@@ -1,13 +1,7 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Microsoft.DotNet.Cli.Utils
 {
@@ -21,7 +15,7 @@ namespace Microsoft.DotNet.Cli.Utils
         private readonly IBuiltInCommandEnvironment _environment;
         private readonly StreamForwarder _stdOut;
         private readonly StreamForwarder _stdErr;
-        private string _workingDirectory;
+        private string? _workingDirectory;
 
         public string CommandName { get; }
         public string CommandArgs => string.Join(" ", _commandArgs);
@@ -52,8 +46,8 @@ namespace Microsoft.DotNet.Cli.Utils
             {
                 // redirecting the standard out and error so we can forward
                 // the output to the caller
-                using (BlockingMemoryStream outStream = new BlockingMemoryStream())
-                using (BlockingMemoryStream errorStream = new BlockingMemoryStream())
+                using (BlockingMemoryStream outStream = new())
+                using (BlockingMemoryStream errorStream = new())
                 {
                     _environment.SetConsoleOut(new StreamWriter(outStream) { AutoFlush = true });
                     _environment.SetConsoleError(new StreamWriter(errorStream) { AutoFlush = true });
@@ -61,7 +55,7 @@ namespace Microsoft.DotNet.Cli.Utils
                     // Reset the Reporters to the new Console Out and Error.
                     Reporter.Reset();
 
-                    if (!string.IsNullOrEmpty(_workingDirectory))
+                    if (_workingDirectory is not null && _workingDirectory.Length != 0)
                     {
                         _environment.SetWorkingDirectory(_workingDirectory);
                     }
@@ -77,7 +71,7 @@ namespace Microsoft.DotNet.Cli.Utils
                     Task.WaitAll(taskOut, taskErr);
 
                     // fake out a ProcessStartInfo using the Muxer command name, since this is a built-in command
-                    ProcessStartInfo startInfo = new ProcessStartInfo(new Muxer().MuxerPath, $"{CommandName} {CommandArgs}");
+                    ProcessStartInfo startInfo = new(new Muxer().MuxerPath, $"{CommandName} {CommandArgs}");
                     return new CommandResult(startInfo, exitCode, null, null);
                 }
             }
@@ -165,21 +159,21 @@ namespace Microsoft.DotNet.Cli.Utils
         public ICommand CaptureStdOut()
         {
             _stdOut.Capture();
-            
+
             return this;
         }
 
-        public ICommand EnvironmentVariable(string name, string value)
+        public ICommand EnvironmentVariable(string name, string? value)
         {
             throw new NotImplementedException();
         }
 
-        public ICommand ForwardStdErr(TextWriter to = null, bool onlyIfVerbose = false, bool ansiPassThrough = true)
+        public ICommand ForwardStdErr(TextWriter? to = null, bool onlyIfVerbose = false, bool ansiPassThrough = true)
         {
             throw new NotImplementedException();
         }
 
-        public ICommand ForwardStdOut(TextWriter to = null, bool onlyIfVerbose = false, bool ansiPassThrough = true)
+        public ICommand ForwardStdOut(TextWriter? to = null, bool onlyIfVerbose = false, bool ansiPassThrough = true)
         {
             throw new NotImplementedException();
         }

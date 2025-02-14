@@ -14,7 +14,7 @@
 . ftr VB CB
 . ftr VBI CBI
 .\}
-.TH "dotnet-list-package" "1" "2022-10-10" "" ".NET Documentation"
+.TH "dotnet-list-package" "1" "2024-10-02" "" ".NET Documentation"
 .hy
 .SH dotnet list package
 .PP
@@ -28,10 +28,12 @@ dotnet-list-package - Lists the package references for a project or solution.
 \f[C]
 dotnet list [<PROJECT>|<SOLUTION>] package [--config <SOURCE>]
     [--deprecated]
-    [--framework <FRAMEWORK>] [--highest-minor] [--highest-patch]
+    [-f|--framework <FRAMEWORK>] [--highest-minor] [--highest-patch]
     [--include-prerelease] [--include-transitive] [--interactive]
     [--outdated] [--source <SOURCE>] [-v|--verbosity <LEVEL>]
     [--vulnerable]
+    [--format <console|json>]
+    [--output-version <VERSION>]
 
 dotnet list package -h|--help
 \f[R]
@@ -112,12 +114,13 @@ Requires the \f[V]--outdated\f[R] option.
 Displays packages that have been deprecated.
 .RE
 .IP \[bu] 2
-\f[B]\f[VB]--framework <FRAMEWORK>\f[B]\f[R]
+\f[B]\f[VB]-f|--framework <FRAMEWORK>\f[B]\f[R]
 .RS 2
 .PP
 Displays only the packages applicable for the specified target framework.
 To specify multiple frameworks, repeat the option multiple times.
 For example: \f[V]--framework net6.0 --framework netstandard2.0\f[R].
+The short form of the option (\f[V]-f\f[R]) is available starting in .NET 9 SDK.
 .RE
 .IP \[bu] 2
 \f[B]\f[VB]-?|-h|--help\f[B]\f[R]
@@ -192,6 +195,27 @@ Cannot be combined with \f[V]--deprecated\f[R] or \f[V]--outdated\f[R] options.
 Nuget.org is the source of information about vulnerabilities.
 For more information, see Vulnerabilities and How to Scan NuGet Packages for Security Vulnerabilities (https://devblogs.microsoft.com/nuget/how-to-scan-nuget-packages-for-security-vulnerabilities/).
 .RE
+.IP \[bu] 2
+\f[B]\f[VB]--format <console|json>\f[B]\f[R]
+.RS 2
+.PP
+Sets the report output format.
+Allowed values are \f[V]console\f[R], \f[V]json\f[R].
+Defaults to \f[V]console\f[R].
+Available starting in .NET SDK 7.0.200.
+.RE
+.IP \[bu] 2
+\f[B]\f[VB]--output-version <VERSION>\f[B]\f[R]
+.RS 2
+.PP
+Sets the report output version.
+Allowed value is \f[V]1\f[R].
+Defaults to \f[V]1\f[R].
+Requires the \f[V]--format json\f[R] option.
+When a new JSON version is available, the command will produce the new format by default.
+This option will let you specify that the command should produce an earlier format.
+Available starting in .NET SDK 7.0.200.
+.RE
 .SH EXAMPLES
 .IP \[bu] 2
 List package references of a specific project:
@@ -220,6 +244,46 @@ List package references for a specific target framework:
 .nf
 \f[C]
 dotnet list package --framework netcoreapp3.0
+\f[R]
+.fi
+.RE
+.IP \[bu] 2
+List package references in machine readable json output format:
+.RS 2
+.IP
+.nf
+\f[C]
+dotnet list package --format json
+\f[R]
+.fi
+.RE
+.IP \[bu] 2
+List package references for a specific target framework in machine readable json output format:
+.RS 2
+.IP
+.nf
+\f[C]
+ dotnet list package --framework netcoreapp3.0 --format json
+\f[R]
+.fi
+.RE
+.IP \[bu] 2
+Save machine readable json output of package references, including transitive dependency and vulnerability details into a file:
+.RS 2
+.IP
+.nf
+\f[C]
+dotnet list package --include-transitive --vulnerable --format json >> dependencyReport.json
+\f[R]
+.fi
+.RE
+.IP \[bu] 2
+List package references in machine readable json output format with output version 1:
+.RS 2
+.IP
+.nf
+\f[C]
+dotnet list package --format json --output-version 1
 \f[R]
 .fi
 .RE

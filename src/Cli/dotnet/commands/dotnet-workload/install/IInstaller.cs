@@ -1,14 +1,12 @@
-// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Microsoft.DotNet.Cli;
 using Microsoft.DotNet.ToolPackage;
+using Microsoft.DotNet.Workloads.Workload.History;
 using Microsoft.DotNet.Workloads.Workload.Install.InstallRecord;
 using Microsoft.Extensions.EnvironmentAbstractions;
 using Microsoft.NET.Sdk.WorkloadManifestReader;
-using static Microsoft.NET.Sdk.WorkloadManifestReader.WorkloadResolver;
 
 namespace Microsoft.DotNet.Workloads.Workload.Install
 {
@@ -16,17 +14,27 @@ namespace Microsoft.DotNet.Workloads.Workload.Install
     {
         int ExitCode { get; }
 
+        WorkloadSet GetWorkloadSetContents(string workloadVersion);
+
         void InstallWorkloads(IEnumerable<WorkloadId> workloadIds, SdkFeatureBand sdkFeatureBand, ITransactionContext transactionContext, DirectoryPath? offlineCache = null);
 
         void RepairWorkloads(IEnumerable<WorkloadId> workloadIds, SdkFeatureBand sdkFeatureBand, DirectoryPath? offlineCache = null);
 
-        void GarbageCollectInstalledWorkloadPacks(DirectoryPath? offlineCache = null);
+        void GarbageCollect(Func<string, IWorkloadResolver> getResolverForWorkloadSet, DirectoryPath? offlineCache = null, bool cleanAllPacks = false);
 
-        void InstallWorkloadManifest(ManifestVersionUpdate manifestUpdate, ITransactionContext transactionContext, DirectoryPath? offlineCache = null, bool isRollback = false);
+        WorkloadSet InstallWorkloadSet(ITransactionContext context, string workloadSetVersion, DirectoryPath? offlineCache = null);
+
+        void InstallWorkloadManifest(ManifestVersionUpdate manifestUpdate, ITransactionContext transactionContext, DirectoryPath? offlineCache = null);
 
         IWorkloadInstallationRecordRepository GetWorkloadInstallationRecordRepository();
 
         IEnumerable<WorkloadDownload> GetDownloads(IEnumerable<WorkloadId> workloadIds, SdkFeatureBand sdkFeatureBand, bool includeInstalledItems);
+
+        void AdjustWorkloadSetInInstallState(SdkFeatureBand sdkFeatureBand, string workloadVersion);
+
+        void WriteWorkloadHistoryRecord(WorkloadHistoryRecord workloadHistoryRecord, string sdkFeatureBand);
+
+        IEnumerable<WorkloadHistoryRecord> GetWorkloadHistoryRecords(string sdkFeatureBand);
 
         /// <summary>
         /// Replace the workload resolver used by this installer. Typically used to call <see cref="GetDownloads(IEnumerable{WorkloadId}, SdkFeatureBand, bool)"/>
@@ -37,7 +45,22 @@ namespace Microsoft.DotNet.Workloads.Workload.Install
 
         void Shutdown();
 
-        
+        /// <summary>
+        /// Delete the install state file at the specified path.
+        /// </summary>
+        /// <param name="sdkFeatureBand">The SDK feature band of the install state file.</param>
+        void RemoveManifestsFromInstallState(SdkFeatureBand sdkFeatureBand);
+
+        /// <summary>
+        /// Writes the specified JSON contents to the install state file.
+        /// </summary>
+        /// <param name="sdkFeatureBand">The SDK feature band of the install state file.</param>
+        /// <param name="manifestContents">The JSON contents describing the install state.</param>
+        void SaveInstallStateManifestVersions(SdkFeatureBand sdkFeatureBand, Dictionary<string, string> manifestContents);
+
+        void UpdateInstallMode(SdkFeatureBand sdkFeatureBand, bool? newMode);
+
+        void RecordWorkloadSetInGlobalJson(SdkFeatureBand sdkFeatureBand, string globalJsonPath, string workloadSetVersion);
     }
 
     // Interface to pass to workload manifest updater
@@ -66,6 +89,5 @@ namespace Microsoft.DotNet.Workloads.Workload.Install
             NuGetPackageId = nuGetPackageId;
             NuGetPackageVersion = nuGetPackageVersion;
         }
-
     }
 }

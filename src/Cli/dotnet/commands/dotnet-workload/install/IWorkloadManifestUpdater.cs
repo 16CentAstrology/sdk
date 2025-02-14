@@ -1,9 +1,7 @@
-// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Microsoft.DotNet.Workloads.Workload.Install.InstallRecord;
+using Microsoft.DotNet.Workloads.Workload.History;
 using Microsoft.Extensions.EnvironmentAbstractions;
 using Microsoft.NET.Sdk.WorkloadManifestReader;
 
@@ -11,17 +9,16 @@ namespace Microsoft.DotNet.Workloads.Workload.Install
 {
     internal interface IWorkloadManifestUpdater
     {
-        Task UpdateAdvertisingManifestsAsync(bool includePreviews, DirectoryPath? offlineCache = null);
+        Task UpdateAdvertisingManifestsAsync(bool includePreviews, bool useWorkloadSets = false, DirectoryPath? offlineCache = null);
 
         Task BackgroundUpdateAdvertisingManifestsWhenRequiredAsync();
 
-        IEnumerable<(
-            ManifestVersionUpdate manifestUpdate,
-            Dictionary<WorkloadId, WorkloadDefinition> Workloads
-            )> CalculateManifestUpdates();
+        IEnumerable<ManifestUpdateWithWorkloads> CalculateManifestUpdates();
 
-        IEnumerable<ManifestVersionUpdate>
-            CalculateManifestRollbacks(string rollbackDefinitionFilePath);
+        string GetAdvertisedWorkloadSetVersion();
+        IEnumerable<ManifestVersionUpdate> CalculateManifestRollbacks(string rollbackDefinitionFilePath, WorkloadHistoryRecorder recorder = null);
+        IEnumerable<ManifestVersionUpdate> CalculateManifestUpdatesFromHistory(WorkloadHistoryState state);
+        IEnumerable<ManifestVersionUpdate> CalculateManifestUpdatesForWorkloadSet(WorkloadSet workloadSet);
 
         Task<IEnumerable<WorkloadDownload>> GetManifestPackageDownloadsAsync(bool includePreviews, SdkFeatureBand providedSdkFeatureBand, SdkFeatureBand installedSdkFeatureBand);
 
@@ -29,4 +26,6 @@ namespace Microsoft.DotNet.Workloads.Workload.Install
 
         void DeleteUpdatableWorkloadsFile();
     }
+
+    internal record ManifestUpdateWithWorkloads(ManifestVersionUpdate ManifestUpdate, WorkloadCollection Workloads);
 }

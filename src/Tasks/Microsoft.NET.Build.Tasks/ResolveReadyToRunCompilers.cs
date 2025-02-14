@@ -1,11 +1,5 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System;
-using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
@@ -58,21 +52,7 @@ namespace Microsoft.NET.Build.Tasks
             _runtimePack = GetNETCoreAppRuntimePack();
             _targetRuntimeIdentifier = _runtimePack?.GetMetadata(MetadataKeys.RuntimeIdentifier);
 
-            // Get the list of runtime identifiers that we support and can target
-            ITaskItem targetingPack = GetNETCoreAppTargetingPack();
-            string supportedRuntimeIdentifiers = targetingPack?.GetMetadata(MetadataKeys.RuntimePackRuntimeIdentifiers);
-
-            var runtimeGraph = new RuntimeGraphCache(this).GetRuntimeGraph(RuntimeGraphPath);
-            var supportedRIDsList = supportedRuntimeIdentifiers == null ? Array.Empty<string>() : supportedRuntimeIdentifiers.Split(';');
-
-            // Get the best RID for the host machine, which will be used to validate that we can run crossgen for the target platform and architecture
-            _hostRuntimeIdentifier = NuGetUtils.GetBestMatchingRid(
-                runtimeGraph,
-                NETCoreSdkRuntimeIdentifier,
-                supportedRIDsList,
-                out _);
-
-            if (_hostRuntimeIdentifier == null || _targetRuntimeIdentifier == null)
+            if (_targetRuntimeIdentifier == null)
             {
                 Log.LogError(Strings.ReadyToRunNoValidRuntimePackageError);
                 return;
@@ -102,6 +82,13 @@ namespace Microsoft.NET.Build.Tasks
 
         private bool ValidateCrossgenSupport()
         {
+            _hostRuntimeIdentifier = GetHostRuntimeIdentifierForCrossgen();
+            if (_hostRuntimeIdentifier == null)
+            {
+                Log.LogError(Strings.ReadyToRunNoValidRuntimePackageError);
+                return false;
+            }
+
             _crossgenTool.PackagePath = _runtimePack?.GetMetadata(MetadataKeys.PackageDirectory);
             if (_crossgenTool.PackagePath == null)
             {
@@ -127,12 +114,39 @@ namespace Microsoft.NET.Build.Tasks
             }
 
             return true;
+
+            string GetHostRuntimeIdentifierForCrossgen()
+            {
+                // Crossgen's host RID comes from the runtime pack that Crossgen will be loaded from.
+
+                // Get the list of runtime identifiers that we support and can target
+                ITaskItem targetingPack = GetNETCoreAppTargetingPack();
+                string supportedRuntimeIdentifiers = targetingPack?.GetMetadata(MetadataKeys.RuntimePackRuntimeIdentifiers);
+
+                var runtimeGraph = new RuntimeGraphCache(this).GetRuntimeGraph(RuntimeGraphPath);
+                var supportedRIDsList = supportedRuntimeIdentifiers == null ? Array.Empty<string>() : supportedRuntimeIdentifiers.Split(';');
+
+                // Get the best RID for the host machine, which will be used to validate that we can run crossgen for the target platform and architecture
+                return NuGetUtils.GetBestMatchingRid(
+                    runtimeGraph,
+                    NETCoreSdkRuntimeIdentifier,
+                    supportedRIDsList,
+                    out _);
+            }
         }
 
         private bool ValidateCrossgen2Support()
         {
             ITaskItem crossgen2Pack = Crossgen2Packs?.FirstOrDefault();
-            _crossgen2Tool.PackagePath = crossgen2Pack?.GetMetadata(MetadataKeys.PackageDirectory);
+
+            _hostRuntimeIdentifier = crossgen2Pack?.GetMetadata(MetadataKeys.RuntimeIdentifier);
+            if (_hostRuntimeIdentifier == null)
+            {
+                Log.LogError(Strings.ReadyToRunNoValidRuntimePackageError);
+                return false;
+            }
+
+            _crossgen2Tool.PackagePath = crossgen2Pack.GetMetadata(MetadataKeys.PackageDirectory);
 
             if (string.IsNullOrEmpty(_crossgen2Tool.PackagePath) ||
                 !NuGetVersion.TryParse(crossgen2Pack.GetMetadata(MetadataKeys.NuGetPackageVersion), out NuGetVersion crossgen2PackVersion))
@@ -187,36 +201,23 @@ namespace Microsoft.NET.Build.Tasks
 
             // Determine targetOS based on target rid.
             // Use the runtime graph to support non-portable target rids.
+            // Use the full target rid instead of just the target OS as the runtime graph
+            // may only have the full target rid and not an OS-only rid for non-portable target rids
+            // added by our source-build partners.
             var runtimeGraph = new RuntimeGraphCache(this).GetRuntimeGraph(RuntimeGraphPath);
             string portablePlatform = NuGetUtils.GetBestMatchingRid(
                     runtimeGraph,
-                    _targetPlatform,
-                    new[] { "linux", "linux-musl", "osx", "win" },
+                    _targetRuntimeIdentifier,
+                    new[] { "linux", "osx", "win", "freebsd", "illumos" },
                     out _);
-
-            // For source-build, allow the bootstrap SDK rid to be unknown to the runtime repo graph.
-            if (portablePlatform == null && _targetRuntimeIdentifier == _hostRuntimeIdentifier)
-            {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    portablePlatform = "linux";
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                {
-                    portablePlatform = "win";
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    portablePlatform = "osx";
-                }
-            }
 
             targetOS = portablePlatform switch
             {
                 "linux" => "linux",
-                "linux-musl" => "linux",
                 "osx" => "osx",
                 "win" => "windows",
+                "freebsd" => "freebsd",
+                "illumos" => "illumos",
                 _ => null
             };
 
@@ -262,6 +263,14 @@ namespace Microsoft.NET.Build.Tasks
                 case "arm64":
                     architecture = Architecture.Arm64;
                     break;
+#if !NETFRAMEWORK
+                case "riscv64":
+                    architecture = Architecture.RiscV64;
+                    break;
+                case "loongarch64":
+                    architecture = Architecture.LoongArch64;
+                    break;
+#endif
                 case "x64":
                     architecture = Architecture.X64;
                     break;
@@ -387,11 +396,6 @@ namespace Microsoft.NET.Build.Tasks
                 toolFileName = "crossgen2.exe";
                 v5_clrJitFileNamePattern = "clrjit-{0}.dll";
             }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                toolFileName = "crossgen2";
-                v5_clrJitFileNamePattern = "libclrjit-{0}.so";
-            }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 toolFileName = "crossgen2";
@@ -399,8 +403,9 @@ namespace Microsoft.NET.Build.Tasks
             }
             else
             {
-                // Unknown platform
-                return false;
+                // Generic Unix-like: linux, freebsd, and others.
+                toolFileName = "crossgen2";
+                v5_clrJitFileNamePattern = "libclrjit-{0}.so";
             }
 
             if (version5)
@@ -433,6 +438,10 @@ namespace Microsoft.NET.Build.Tasks
                 Architecture.X64 => "x64",
                 Architecture.Arm => "arm",
                 Architecture.Arm64 => "arm64",
+#if !NETFRAMEWORK
+                Architecture.RiscV64 => "riscv64",
+                Architecture.LoongArch64 => "loongarch64",
+#endif
                 _ => null
             };
         }

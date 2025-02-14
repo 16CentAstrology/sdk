@@ -1,14 +1,6 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-//Microsoft.NET.Build.Extensions.Tasks (net7.0) has nullables disabled
-#pragma warning disable IDE0240 // Remove redundant nullable directive
-#nullable disable
-#pragma warning restore IDE0240 // Remove redundant nullable directive
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Microsoft.Build.Framework;
 
 #if EXTENSIONS
@@ -66,7 +58,7 @@ namespace Microsoft.NET.Build.Tasks.ConflictResolution
                     {
                         string versionString = trimmedOverriddenPackagesAndVersion.Substring(separatorIndex + 1);
                         string overriddenPackage = trimmedOverriddenPackagesAndVersion.Substring(0, separatorIndex);
-                        if (OverrideVersion.TryParse(versionString, out OverrideVersion version))
+                        if (OverrideVersion.TryParse(versionString, out OverrideVersion? version))
                         {
                             yield return Tuple.Create(overriddenPackage, version);
                         }

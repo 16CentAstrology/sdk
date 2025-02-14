@@ -1,34 +1,27 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
 using System.CommandLine;
-using System.CommandLine.Parsing;
 using System.Diagnostics;
-using System.Linq;
 using Microsoft.DotNet.Cli;
 using Microsoft.DotNet.Cli.Utils;
+using Microsoft.TemplateEngine.Cli.Commands;
+
+using NuGetDocumentedCommand = NuGet.CommandLine.XPlat.Commands.DocumentedCommand;
 
 namespace Microsoft.DotNet.Tools.Help
 {
-    public class HelpCommand
+    public class HelpCommand(string[] helpArgs)
     {
-        private readonly ParseResult _parseResult;
-
-        public HelpCommand(ParseResult parseResult)
-        {
-            _parseResult = parseResult;
-        }
-
         public static int Run(ParseResult result)
         {
             result.HandleDebugSwitch();
 
             result.ShowHelpOrErrorIfAppropriate();
 
-            if (!string.IsNullOrEmpty(result.GetValue(HelpCommandParser.Argument)))
+            if (result.GetValue(HelpCommandParser.Argument) is string[] args && args is not [])
             {
-                return new HelpCommand(result).Execute();
+                return new HelpCommand(args).Execute();
             }
 
             PrintHelp();
@@ -54,7 +47,7 @@ namespace Microsoft.DotNet.Tools.Help
             {
                 psInfo = new ProcessStartInfo
                 {
-                    FileName = "cmd",
+                    FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe"),
                     Arguments = $"/c start {docUrl}"
                 };
             }
@@ -62,15 +55,19 @@ namespace Microsoft.DotNet.Tools.Help
             {
                 psInfo = new ProcessStartInfo
                 {
-                    FileName = "open",
+                    FileName = @"/usr/bin/open",
                     Arguments = docUrl
                 };
             }
             else
             {
+                var fileName = File.Exists(@"/usr/bin/xdg-open") ? @"/usr/bin/xdg-open" :
+                               File.Exists(@"/usr/sbin/xdg-open") ? @"/usr/sbin/xdg-open" :
+                               File.Exists(@"/sbin/xdg-open") ? @"/sbin/xdg-open" :
+                               "xdg-open";
                 psInfo = new ProcessStartInfo
                 {
-                    FileName = "xdg-open",
+                    FileName = fileName,
                     Arguments = docUrl
                 };
             }
@@ -84,7 +81,7 @@ namespace Microsoft.DotNet.Tools.Help
         public int Execute()
         {
             if (TryGetDocsLink(
-                _parseResult.GetValue(HelpCommandParser.Argument),
+                helpArgs,
                 out var docsLink) &&
                 !string.IsNullOrEmpty(docsLink))
             {
@@ -98,18 +95,23 @@ namespace Microsoft.DotNet.Tools.Help
                 Reporter.Error.WriteLine(
                     string.Format(
                         LocalizableStrings.CommandDoesNotExist,
-                        _parseResult.GetValue(HelpCommandParser.Argument)).Red());
+                        helpArgs).Red());
                 Reporter.Output.WriteLine(HelpUsageText.UsageText);
                 return 1;
             }
         }
 
-        private bool TryGetDocsLink(string commandName, out string docsLink)
+        private bool TryGetDocsLink(string[] command, out string docsLink)
         {
-            var command = Cli.Parser.GetBuiltInCommand(commandName);
-            if (command != null && command as DocumentedCommand != null)
+            var parsedCommand = Parser.Instance.Parse(["dotnet", .. command]);
+            if (parsedCommand?.CommandResult?.Command is ICommandDocument dc)
             {
-                docsLink = (command as DocumentedCommand).DocsLink;
+                docsLink = dc.DocsLink;
+                return true;
+            }
+            else if (parsedCommand?.CommandResult?.Command is NuGetDocumentedCommand ndc)
+            {
+                docsLink = ndc.HelpUrl;
                 return true;
             }
             docsLink = null;

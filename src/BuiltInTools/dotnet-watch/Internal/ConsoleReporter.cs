@@ -1,91 +1,82 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-
-namespace Microsoft.Extensions.Tools.Internal
+namespace Microsoft.DotNet.Watch
 {
     /// <summary>
     /// This API supports infrastructure and is not intended to be used
     /// directly from your code. This API may change or be removed in future releases.
     /// </summary>
-    internal sealed class ConsoleReporter : IReporter
+    internal sealed class ConsoleReporter(IConsole console, bool verbose, bool quiet, bool suppressEmojis) : IReporter
     {
-        private readonly object _writeLock = new object();
+        public bool IsVerbose { get; } = verbose;
+        public bool IsQuiet { get; } = quiet;
+        public bool SuppressEmojis { get; } = suppressEmojis;
 
-        public ConsoleReporter(IConsole console)
-            : this(console, verbose: false, quiet: false, suppressEmojis: false)
-        { }
+        private readonly Lock _writeLock = new();
 
-        public ConsoleReporter(IConsole console, bool verbose, bool quiet, bool suppressEmojis)
+        public void ReportProcessOutput(OutputLine line)
         {
-            Ensure.NotNull(console, nameof(console));
-
-            Console = console;
-            IsVerbose = verbose;
-            IsQuiet = quiet;
-            SuppressEmojis = suppressEmojis;
+            lock (_writeLock)
+            {
+                (line.IsError ? console.Error : console.Out).WriteLine(line.Content);
+            }
         }
-
-        private IConsole Console { get; }
-        public bool IsVerbose { get; set; }
-        public bool IsQuiet { get; set; }
-        public bool SuppressEmojis { get; set; }
 
         private void WriteLine(TextWriter writer, string message, ConsoleColor? color, string emoji)
         {
             lock (_writeLock)
             {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
+                console.ForegroundColor = ConsoleColor.DarkGray;
                 writer.Write($"dotnet watch {(SuppressEmojis ? ":" : emoji)} ");
-                Console.ResetColor();
+                console.ResetColor();
 
                 if (color.HasValue)
                 {
-                    Console.ForegroundColor = color.Value;
+                    console.ForegroundColor = color.Value;
                 }
 
                 writer.WriteLine(message);
 
                 if (color.HasValue)
                 {
-                    Console.ResetColor();
+                    console.ResetColor();
                 }
             }
         }
 
-        public void Error(string message, string emoji = "❌")
+        public void Report(MessageDescriptor descriptor, string prefix, object?[] args)
         {
-            WriteLine(Console.Error, message, ConsoleColor.Red, emoji);
-        }
-
-        public void Warn(string message, string emoji = "⌚")
-        {
-            WriteLine(Console.Out, message, ConsoleColor.Yellow, emoji);
-        }
-
-        public void Output(string message, string emoji = "⌚")
-        {
-            if (IsQuiet)
+            if (!descriptor.TryGetMessage(prefix, args, out var message))
             {
                 return;
             }
 
-            WriteLine(Console.Out, message, color: null, emoji);
-        }
-
-        public void Verbose(string message, string emoji = "⌚")
-        {
-            if (!IsVerbose)
+            switch (descriptor.Severity)
             {
-                return;
-            }
+                case MessageSeverity.Error:
+                    // Use stdout for error messages to preserve ordering with respect to other output.
+                    WriteLine(console.Out, message, ConsoleColor.Red, descriptor.Emoji);
+                    break;
 
-            WriteLine(Console.Out, message, ConsoleColor.DarkGray, emoji);
+                case MessageSeverity.Warning:
+                    WriteLine(console.Out, message, ConsoleColor.Yellow, descriptor.Emoji);
+                    break;
+
+                case MessageSeverity.Output:
+                    if (!IsQuiet)
+                    {
+                        WriteLine(console.Out, message, color: null, descriptor.Emoji);
+                    }
+                    break;
+
+                case MessageSeverity.Verbose:
+                    if (IsVerbose)
+                    {
+                        WriteLine(console.Out, message, ConsoleColor.DarkGray, descriptor.Emoji);
+                    }
+                    break;
+            }
         }
     }
 }

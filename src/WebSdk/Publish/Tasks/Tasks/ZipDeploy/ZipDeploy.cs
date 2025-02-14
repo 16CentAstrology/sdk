@@ -1,10 +1,8 @@
-using System;
-using System.IO;
-using System.Linq;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using System.Net;
-using System.Text;
 using Microsoft.Build.Framework;
-using Microsoft.Build.Utilities;
 using Microsoft.NET.Sdk.Publish.Tasks.MsDeploy;
 using Microsoft.NET.Sdk.Publish.Tasks.Properties;
 
@@ -15,28 +13,28 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.ZipDeploy
         private const string UserAgentName = "websdk";
 
         [Required]
-        public string ZipToPublishPath { get; set; }
+        public string? ZipToPublishPath { get; set; }
 
         [Required]
-        public string UserAgentVersion { get; set; }
+        public string? UserAgentVersion { get; set; }
 
         [Required]
-        public string DestinationUsername { get; set; }
+        public string? DestinationUsername { get; set; }
 
-        public string DestinationPassword { get; set; }
+        public string? DestinationPassword { get; set; }
 
-        public string PublishUrl { get; set; }
+        public string? PublishUrl { get; set; }
 
         /// <summary>
         /// Our fallback if PublishUrl is not given, which is the case for ZIP Deploy profiles
         /// profiles created prior to 15.8 Preview 4. Using this will fail if the site is a slot.
         /// </summary>
-        public string SiteName { get; set; }
+        public string? SiteName { get; set; }
 
         public override bool Execute()
         {
-            string user = DestinationUsername;
-            string password = DestinationPassword;
+            string? user = DestinationUsername;
+            string? password = DestinationPassword;
 
             if (string.IsNullOrEmpty(password) && !GetDestinationCredentials(out user, out password))
             {
@@ -44,24 +42,24 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.ZipDeploy
                 return false;
             }
 
-            using (DefaultHttpClient client = new DefaultHttpClient())
+            using (DefaultHttpClient client = new())
             {
-                System.Threading.Tasks.Task<bool> t = ZipDeployAsync(ZipToPublishPath, user, password, PublishUrl, SiteName, UserAgentVersion, client, true);
+                Task<bool> t = ZipDeployAsync(ZipToPublishPath, user, password, PublishUrl, SiteName, UserAgentVersion, client, true);
                 t.Wait();
                 return t.Result;
             }
         }
 
-        public async System.Threading.Tasks.Task<bool> ZipDeployAsync(string zipToPublishPath, string userName, string password, string publishUrl, string siteName, string userAgentVersion, IHttpClient client, bool logMessages)
+        public async Task<bool> ZipDeployAsync(string? zipToPublishPath, string? userName, string? password, string? publishUrl, string? siteName, string? userAgentVersion, IHttpClient client, bool logMessages)
         {
             if (!File.Exists(zipToPublishPath) || client == null)
             {
                 return false;
             }
 
-            string zipDeployPublishUrl = null;
+            string? zipDeployPublishUrl = null;
 
-            if(!string.IsNullOrEmpty(publishUrl))
+            if (publishUrl is not null && publishUrl.Length != 0)
             {
                 if (!publishUrl.EndsWith("/"))
                 {
@@ -70,13 +68,13 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.ZipDeploy
 
                 zipDeployPublishUrl = publishUrl + "api/zipdeploy";
             }
-            else if(!string.IsNullOrEmpty(siteName))
+            else if (!string.IsNullOrEmpty(siteName))
             {
                 zipDeployPublishUrl = $"https://{siteName}.scm.azurewebsites.net/api/zipdeploy";
             }
             else
             {
-                if(logMessages)
+                if (logMessages)
                 {
                     Log.LogError(Resources.ZIPDEPLOY_InvalidSiteNamePublishUrl);
                 }
@@ -90,15 +88,15 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.ZipDeploy
             }
 
             // use the async version of the api
-            Uri uri = new Uri($"{zipDeployPublishUrl}?isAsync=true", UriKind.Absolute);
+            Uri uri = new($"{zipDeployPublishUrl}?isAsync=true", UriKind.Absolute);
             string userAgent = $"{UserAgentName}/{userAgentVersion}";
             FileStream stream = File.OpenRead(zipToPublishPath);
-            IHttpResponse response = await client.PostWithBasicAuthAsync(uri, userName, password, "application/zip", userAgent, Encoding.UTF8, stream);
-            if (response.StatusCode != HttpStatusCode.OK && response.StatusCode != HttpStatusCode.Accepted)
+            IHttpResponse? response = await client.PostRequestAsync(uri, userName, password, "application/zip", userAgent, Encoding.UTF8, stream);
+            if (response?.StatusCode != HttpStatusCode.OK && response?.StatusCode != HttpStatusCode.Accepted)
             {
                 if (logMessages)
                 {
-                    Log.LogError(string.Format(Resources.ZIPDEPLOY_FailedDeploy, zipDeployPublishUrl, response.StatusCode));
+                    Log.LogError(string.Format(Resources.ZIPDEPLOY_FailedDeploy, zipDeployPublishUrl, response?.StatusCode));
                 }
 
                 return false;
@@ -110,12 +108,12 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.ZipDeploy
                     Log.LogMessage(Resources.ZIPDEPLOY_Uploaded);
                 }
 
-                string deploymentUrl = response.GetHeader("Location").FirstOrDefault();
+                string? deploymentUrl = response.GetHeader("Location").FirstOrDefault();
                 if (!string.IsNullOrEmpty(deploymentUrl))
                 {
                     ZipDeploymentStatus deploymentStatus = new(client, userAgent, Log, logMessages);
 
-                    DeploymentResponse deploymentResponse = await deploymentStatus.PollDeploymentStatusAsync(deploymentUrl, userName, password);
+                    DeploymentResponse? deploymentResponse = await deploymentStatus.PollDeploymentStatusAsync(deploymentUrl, userName, password);
                     if (deploymentResponse?.Status == DeployStatus.Success)
                     {
                         Log.LogMessage(MessageImportance.High, Resources.ZIPDEPLOY_Succeeded);
@@ -138,7 +136,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.ZipDeploy
 
         private bool GetDestinationCredentials(out string user, out string password)
         {
-            VSHostObject hostObj = new VSHostObject(HostObject as System.Collections.Generic.IEnumerable<ITaskItem>);
+            VSHostObject hostObj = new(HostObject as IEnumerable<ITaskItem>);
             return hostObj.ExtractCredentials(out user, out password);
         }
     }

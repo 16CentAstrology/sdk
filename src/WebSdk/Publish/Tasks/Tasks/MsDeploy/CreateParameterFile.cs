@@ -1,42 +1,42 @@
-﻿
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+using System.Text.RegularExpressions;
+using Framework = Microsoft.Build.Framework;
+using Utilities = Microsoft.Build.Utilities;
+using Xml = System.Xml;
+
 namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
 {
-    using Microsoft.Build.Utilities;
-    using System.IO;
-    using Framework = Microsoft.Build.Framework;
-    using Utilities = Microsoft.Build.Utilities;
-    using Xml = System.Xml;
-    using System.Text.RegularExpressions;
-
     public class CreateParameterFile : Task
     {
-        private Framework.ITaskItem[] m_parameters = null;
-        private string m_declareParametersFile = null;
-        private string m_declareSetParametersFile = null;
-        private string m_setParametersFile = null;
+        private Framework.ITaskItem[]? m_parameters = null;
+        private string? m_declareParametersFile = null;
+        private string? m_declareSetParametersFile = null;
+        private string? m_setParametersFile = null;
         private bool m_generateFileEvenIfEmpty = false;
         private bool m_includeDefaultValue = false;
 
         [Framework.Required]
-        public Framework.ITaskItem[] Parameters
+        public Framework.ITaskItem[]? Parameters
         {
             get { return m_parameters; }
             set { m_parameters = value; }
         }
 
-        public string DeclareParameterFile
+        public string? DeclareParameterFile
         {
             get { return m_declareParametersFile; }
             set { m_declareParametersFile = value; }
         }
 
-        public string DeclareSetParameterFile
+        public string? DeclareSetParameterFile
         {
             get { return m_declareSetParametersFile; }
             set { m_declareSetParametersFile = value; }
         }
 
-        public string SetParameterFile
+        public string? SetParameterFile
         {
             get { return m_setParametersFile; }
             set { m_setParametersFile = value; }
@@ -64,13 +64,13 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         private static readonly string[] s_setParameterAttributes = {   SyncParameterMetadata.Description.ToString().ToLowerInvariant(),
                                                                         SyncParameterMetadata.Value.ToString().ToLowerInvariant(),
                                                                         SyncParameterMetadata.Tags.ToString().ToLowerInvariant(),};
-        private static readonly string[] s_parameterEntryIdentities = { ExistingParameterValiationMetadata.Element.ToString().ToLowerInvariant(),
+        private static readonly string[] s_parameterEntryIdentities = { ExistingParameterValidationMetadata.Element.ToString().ToLowerInvariant(),
                                                                           ExistingDeclareParameterMetadata.Kind.ToString().ToLowerInvariant(),
                                                                           ExistingDeclareParameterMetadata.Scope.ToString().ToLowerInvariant(),
                                                                           ExistingDeclareParameterMetadata.Match.ToString().ToLowerInvariant(),};
 
-        private static readonly string[] s_parameterValidationIdentities = {  ExistingParameterValiationMetadata.Element.ToString().ToLowerInvariant(),
-                                                                           ExistingParameterValiationMetadata.Kind.ToString().ToLowerInvariant(),
+        private static readonly string[] s_parameterValidationIdentities = {  ExistingParameterValidationMetadata.Element.ToString().ToLowerInvariant(),
+                                                                           ExistingParameterValidationMetadata.Kind.ToString().ToLowerInvariant(),
                                                                           "validationString",};
 
         /// <summary>
@@ -79,41 +79,40 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         /// <param name="loggingHelper"></param>
         /// <param name="parameters"></param>
         /// <param name="outputFileName"></param>
-        private static void WriteDeclareParametersToFile(Utilities.TaskLoggingHelper loggingHelper, Framework.ITaskItem[] parameters, string outputFileName, bool foptimisticParameterDefaultValue)
+        private static void WriteDeclareParametersToFile(Utilities.TaskLoggingHelper loggingHelper, Framework.ITaskItem[]? parameters, string outputFileName, bool foptimisticParameterDefaultValue)
         {
             WriteDeclareParametersToFile(loggingHelper, parameters, s_parameterAttributes, outputFileName, foptimisticParameterDefaultValue, DeclareParameterMetadata.DefaultValue.ToString());
         }
 
-        private static void WriteDeclareSetParametersToFile(Utilities.TaskLoggingHelper loggingHelper, Framework.ITaskItem[] parameters, string outputFileName, bool foptimisticParameterDefaultValue)
+        private static void WriteDeclareSetParametersToFile(Utilities.TaskLoggingHelper loggingHelper, Framework.ITaskItem[]? parameters, string outputFileName, bool foptimisticParameterDefaultValue)
         {
             WriteDeclareParametersToFile(loggingHelper, parameters, s_setParameterAttributes, outputFileName, foptimisticParameterDefaultValue, SyncParameterMetadata.Value.ToString());
         }
 
-
         private static void WriteDeclareParametersToFile(Utilities.TaskLoggingHelper loggingHelper,
-                                                         Framework.ITaskItem[] parameters,
+                                                         Framework.ITaskItem[]? parameters,
                                                          string[] parameterAttributes,
                                                          string outputFileName,
                                                          bool foptimisticParameterDefaultValue,
                                                          string optimisticParameterMetadata)
         {
-            Xml.XmlDocument document = new System.Xml.XmlDocument();
+            Xml.XmlDocument document = new();
             Xml.XmlElement parametersElement = document.CreateElement("parameters");
             document.AppendChild(parametersElement);
 
             if (parameters != null)
             {
-                System.Collections.Generic.Dictionary<string, Xml.XmlElement> dictionaryLookup
-                    = new System.Collections.Generic.Dictionary<string, Xml.XmlElement>(parameters.GetLength(0), System.StringComparer.OrdinalIgnoreCase);
+                Dictionary<string, Xml.XmlElement> dictionaryLookup
+                    = new(parameters.GetLength(0), StringComparer.OrdinalIgnoreCase);
 
                 // we are on purpose to keep the order without optimistic change the Value/Default base on the non-null optimistic
-                System.Collections.Generic.IList<Framework.ITaskItem> items
+                IList<Framework.ITaskItem> items
                     = Utility.SortParametersTaskItems(parameters, foptimisticParameterDefaultValue, optimisticParameterMetadata);
 
                 foreach (Framework.ITaskItem item in items)
                 {
                     string name = item.ItemSpec;
-                    Xml.XmlElement parameterElement = null;
+                    Xml.XmlElement? parameterElement;
                     bool fCreateNew = false;
                     if (!dictionaryLookup.TryGetValue(name, out parameterElement))
                     {
@@ -130,17 +129,17 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                     }
                     if (parameterElement != null)
                     {
-                        string elementValue = item.GetMetadata(ExistingParameterValiationMetadata.Element.ToString());
+                        string elementValue = item.GetMetadata(ExistingParameterValidationMetadata.Element.ToString());
                         if (string.IsNullOrEmpty(elementValue))
                             elementValue = "parameterEntry";
 
                         string[] parameterIdentities = s_parameterEntryIdentities;
 
-                        if (string.Compare(elementValue, "parameterEntry", System.StringComparison.OrdinalIgnoreCase) == 0)
+                        if (string.Compare(elementValue, "parameterEntry", StringComparison.OrdinalIgnoreCase) == 0)
                         {
                             parameterIdentities = s_parameterEntryIdentities;
                         }
-                        else if (string.Compare(elementValue, "parameterValidation", System.StringComparison.OrdinalIgnoreCase) == 0)
+                        else if (string.Compare(elementValue, "parameterValidation", StringComparison.OrdinalIgnoreCase) == 0)
                         {
                             parameterIdentities = s_parameterValidationIdentities;
                         }
@@ -173,15 +172,15 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                             bool fIdentical = false;
                             foreach (Xml.XmlNode childNode in parameterElement.ChildNodes)
                             {
-                                Xml.XmlElement childElement = childNode as Xml.XmlElement;
+                                Xml.XmlElement? childElement = childNode as Xml.XmlElement;
                                 if (childElement != null)
                                 {
-                                    if (string.Compare(childElement.Name, identityValues[0], System.StringComparison.OrdinalIgnoreCase) == 0)
+                                    if (string.Compare(childElement.Name, identityValues[0], StringComparison.OrdinalIgnoreCase) == 0)
                                     {
                                         fIdentical = true;
                                         for (int i = 1; i < parameterIdentitiesCount; i++)
                                         {
-                                            // case sensitive comparesion  should be O.K.
+                                            // case sensitive comparison should be O.K.
                                             if (string.CompareOrdinal(identityValues[i], childElement.GetAttribute(parameterIdentities[i])) != 0)
                                             {
                                                 fIdentical = false;
@@ -222,7 +221,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
 
             // Save the UTF8 and Indented 
-            Utility.SaveDocument(document, outputFileName, System.Text.Encoding.UTF8);
+            Utility.SaveDocument(document, outputFileName, Encoding.UTF8);
         }
 
         /// <summary>
@@ -231,19 +230,19 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         /// <param name="loggingHelper"></param>
         /// <param name="parameters"></param>
         /// <param name="outputFileName"></param>
-        private static void WriteSetParametersToFile(Utilities.TaskLoggingHelper loggingHelper, Framework.ITaskItem[] parameters, string outputFileName, bool foptimisticParameterDefaultValue)
+        private static void WriteSetParametersToFile(Utilities.TaskLoggingHelper loggingHelper, Framework.ITaskItem[]? parameters, string outputFileName, bool foptimisticParameterDefaultValue)
         {
-            Xml.XmlDocument document = new System.Xml.XmlDocument();
+            Xml.XmlDocument document = new();
             Xml.XmlElement parametersElement = document.CreateElement("parameters");
             document.AppendChild(parametersElement);
             if (parameters != null)
             {
-                System.Collections.Generic.IList<Framework.ITaskItem> items
+                IList<Framework.ITaskItem> items
                     = Utility.SortParametersTaskItems(parameters, foptimisticParameterDefaultValue, SimpleSyncParameterMetadata.Value.ToString());
 
                 // only the first value win
-                System.Collections.Generic.Dictionary<string, Xml.XmlElement> dictionaryLookup
-                    = new System.Collections.Generic.Dictionary<string, Xml.XmlElement>(parameters.GetLength(0));
+                Dictionary<string, Xml.XmlElement> dictionaryLookup
+                    = new(parameters.GetLength(0));
 
                 foreach (Framework.ITaskItem item in items)
                 {
@@ -261,7 +260,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
 
             // Save the UTF8 and Indented 
-            Utility.SaveDocument(document, outputFileName, System.Text.Encoding.UTF8);
+            Utility.SaveDocument(document, outputFileName, Encoding.UTF8);
         }
 
         /// <summary>
@@ -282,21 +281,21 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             {
                 try
                 {
-                    if (!File.Exists(DeclareSetParameterFile))
+                    if (DeclareSetParameterFile is not null && !File.Exists(DeclareSetParameterFile))
                     {
-                        File.Create(DeclareSetParameterFile);
+                        File.Create(DeclareSetParameterFile).Close();
                     }
 
-                    if (!string.IsNullOrEmpty(DeclareParameterFile))
+                    if (DeclareParameterFile is not null && DeclareParameterFile.Length != 0)
                     {
                         WriteDeclareParametersToFile(Log, m_parameters, DeclareParameterFile, OptimisticParameterDefaultValue);
                     }
-                    if (!string.IsNullOrEmpty(SetParameterFile))
+                    if (SetParameterFile is not null && SetParameterFile.Length != 0)
                     {
                         WriteSetParametersToFile(Log, m_parameters, SetParameterFile, OptimisticParameterDefaultValue);
                     }
 
-                    if (!string.IsNullOrEmpty(DeclareSetParameterFile))
+                    if (DeclareSetParameterFile is not null && DeclareSetParameterFile.Length != 0)
                     {
                         if (IncludeDefaultValue)
                         {
@@ -309,13 +308,13 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                     }
                 }
 #if NET472
-                catch (System.Xml.XmlException ex)
+                catch (Xml.XmlException ex)
                 {
-                    System.Uri sourceUri = new System.Uri(ex.SourceUri);
+                    Uri sourceUri = new(ex.SourceUri);
                     succeeded = false;
                 }
 #endif
-                catch (System.Exception)
+                catch (Exception)
                 {
                     succeeded = false;
                 }

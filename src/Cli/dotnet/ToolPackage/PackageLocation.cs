@@ -1,7 +1,6 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
 using Microsoft.Extensions.EnvironmentAbstractions;
 
 namespace Microsoft.DotNet.ToolPackage
@@ -10,16 +9,19 @@ namespace Microsoft.DotNet.ToolPackage
     {
         public PackageLocation(
             FilePath? nugetConfig = null,
-            DirectoryPath? rootConfigDirectory = null, 
-            string[] additionalFeeds = null)
+            DirectoryPath? rootConfigDirectory = null,
+            string[] additionalFeeds = null,
+            string[] sourceFeedOverrides = null)
         {
             NugetConfig = nugetConfig;
             RootConfigDirectory = rootConfigDirectory;
             AdditionalFeeds = additionalFeeds ?? Array.Empty<string>();
+            SourceFeedOverrides = sourceFeedOverrides ?? Array.Empty<string>();
         }
 
         public FilePath? NugetConfig { get; }
         public DirectoryPath? RootConfigDirectory { get; }
         public string[] AdditionalFeeds { get; }
+        public string[] SourceFeedOverrides { get; }
     }
 }

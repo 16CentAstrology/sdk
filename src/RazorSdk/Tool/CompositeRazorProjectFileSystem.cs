@@ -1,8 +1,8 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
+#nullable disable
+
 using Microsoft.AspNetCore.Razor.Language;
 
 namespace Microsoft.NET.Sdk.Razor.Tool
@@ -25,11 +25,6 @@ namespace Microsoft.NET.Sdk.Razor.Tool
                     yield return result;
                 }
             }
-        }
-
-        public override RazorProjectItem GetItem(string path)
-        {
-            return GetItem(path, fileKind: null);
         }
 
         public override RazorProjectItem GetItem(string path, string fileKind)

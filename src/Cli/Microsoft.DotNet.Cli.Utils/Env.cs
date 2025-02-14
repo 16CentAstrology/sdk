@@ -1,7 +1,5 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System.Collections.Generic;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 namespace Microsoft.DotNet.Cli.Utils
 {
@@ -17,17 +15,17 @@ namespace Microsoft.DotNet.Cli.Utils
             }
         }
 
-        public static string GetCommandPath(string commandName, params string[] extensions)
+        public static string? GetCommandPath(string commandName, params string[] extensions)
         {
             return _environment.GetCommandPath(commandName, extensions);
         }
 
-        public static string GetCommandPathFromRootPath(string rootPath, string commandName, params string[] extensions)
+        public static string? GetCommandPathFromRootPath(string rootPath, string commandName, params string[] extensions)
         {
             return _environment.GetCommandPathFromRootPath(rootPath, commandName, extensions);
         }
 
-        public static string GetCommandPathFromRootPath(string rootPath, string commandName, IEnumerable<string> extensions)
+        public static string? GetCommandPathFromRootPath(string rootPath, string commandName, IEnumerable<string> extensions)
         {
             return _environment.GetCommandPathFromRootPath(rootPath, commandName, extensions);
         }
@@ -37,7 +35,12 @@ namespace Microsoft.DotNet.Cli.Utils
             return _environment.GetEnvironmentVariableAsBool(name, defaultValue);
         }
 
-        public static string GetEnvironmentVariable(string name)
+        public static int? GetEnvironmentVariableAsNullableInt(string name)
+        {
+            return _environment.GetEnvironmentVariableAsNullableInt(name);
+        }
+
+        public static string? GetEnvironmentVariable(string name)
         {
             return _environment.GetEnvironmentVariable(name);
         }

@@ -1,13 +1,10 @@
-// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
 using System.CommandLine;
-using System.CommandLine.Parsing;
-using System.IO;
-using System.Linq;
 using Microsoft.DotNet.Cli;
+using Microsoft.DotNet.Cli.NuGetPackageDownloader;
+using Microsoft.DotNet.Cli.ToolPackage;
 using Microsoft.DotNet.Cli.Utils;
 using Microsoft.DotNet.ToolManifest;
 using Microsoft.DotNet.ToolPackage;
@@ -26,30 +23,31 @@ namespace Microsoft.DotNet.Tools.Tool.Restore
         private readonly IFileSystem _fileSystem;
         private readonly IReporter _reporter;
         private readonly string[] _sources;
-        private readonly IToolPackageInstaller _toolPackageInstaller;
-        private readonly string _verbosity;
+        private readonly IToolPackageDownloader _toolPackageDownloader;
+        private readonly VerbosityOptions _verbosity;
+        private readonly RestoreActionConfig _restoreActionConfig;
 
         public ToolRestoreCommand(
             ParseResult result,
-            IToolPackageInstaller toolPackageInstaller = null,
+            IToolPackageDownloader toolPackageDownloader = null,
             IToolManifestFinder toolManifestFinder = null,
             ILocalToolsResolverCache localToolsResolverCache = null,
             IFileSystem fileSystem = null,
             IReporter reporter = null)
             : base(result)
         {
-            if (toolPackageInstaller == null)
+            if (toolPackageDownloader == null)
             {
                 (IToolPackageStore,
                     IToolPackageStoreQuery,
-                    IToolPackageInstaller installer) toolPackageStoresAndInstaller
-                        = ToolPackageFactory.CreateToolPackageStoresAndInstaller(
+                    IToolPackageDownloader downloader) toolPackageStoresAndInstaller
+                        = ToolPackageFactory.CreateToolPackageStoresAndDownloader(
                             additionalRestoreArguments: result.OptionValuesToBeForwarded(ToolRestoreCommandParser.GetCommand()));
-                _toolPackageInstaller = toolPackageStoresAndInstaller.installer;
+                _toolPackageDownloader = toolPackageStoresAndInstaller.downloader;
             }
             else
             {
-                _toolPackageInstaller = toolPackageInstaller;
+                _toolPackageDownloader = toolPackageDownloader;
             }
 
             _toolManifestFinder
@@ -64,7 +62,16 @@ namespace Microsoft.DotNet.Tools.Tool.Restore
 
             _configFilePath = result.GetValue(ToolRestoreCommandParser.ConfigOption);
             _sources = result.GetValue(ToolRestoreCommandParser.AddSourceOption);
-            _verbosity = Enum.GetName(result.GetValue(ToolRestoreCommandParser.VerbosityOption));
+            _verbosity = result.GetValue(ToolRestoreCommandParser.VerbosityOption);
+            if (!result.HasOption(ToolRestoreCommandParser.VerbosityOption) && result.GetValue(ToolCommandRestorePassThroughOptions.InteractiveRestoreOption))
+            {
+                _verbosity = VerbosityOptions.minimal;
+            }
+
+            _restoreActionConfig = new RestoreActionConfig(DisableParallel: result.GetValue(ToolCommandRestorePassThroughOptions.DisableParallelOption),
+                NoCache: result.GetValue(ToolCommandRestorePassThroughOptions.NoCacheOption) || result.GetValue(ToolCommandRestorePassThroughOptions.NoHttpCacheOption),
+                IgnoreFailedSources: result.GetValue(ToolCommandRestorePassThroughOptions.IgnoreFailedSourcesOption),
+                Interactive: result.GetValue(ToolCommandRestorePassThroughOptions.InteractiveRestoreOption));
         }
 
         public override int Execute()
@@ -96,7 +103,7 @@ namespace Microsoft.DotNet.Tools.Tool.Restore
 
             ToolRestoreResult[] toolRestoreResults =
                 packagesFromManifest
-                    .AsParallel()
+                    .AsEnumerable()
                     .Select(package => InstallPackages(package, configFile))
                     .ToArray();
 
@@ -129,32 +136,36 @@ namespace Microsoft.DotNet.Tools.Tool.Restore
             try
             {
                 IToolPackage toolPackage =
-                    _toolPackageInstaller.InstallPackageToExternalManagedLocation(
+                    _toolPackageDownloader.InstallPackage(
                         new PackageLocation(
                             nugetConfig: configFile,
                             additionalFeeds: _sources,
                             rootConfigDirectory: package.FirstEffectDirectory),
-                        package.PackageId, ToVersionRangeWithOnlyOneVersion(package.Version), targetFramework,
-                        verbosity: _verbosity);
+                        package.PackageId,
+                        verbosity: _verbosity,
+                        ToVersionRangeWithOnlyOneVersion(package.Version),
+                        targetFramework,
+                        restoreActionConfig: _restoreActionConfig
+                        );
 
-                if (!ManifestCommandMatchesActualInPackage(package.CommandNames, toolPackage.Commands))
+                if (!ManifestCommandMatchesActualInPackage(package.CommandNames, [toolPackage.Command]))
                 {
                     return ToolRestoreResult.Failure(
                         string.Format(LocalizableStrings.CommandsMismatch,
                             JoinBySpaceWithQuote(package.CommandNames.Select(c => c.Value.ToString())),
                             package.PackageId,
-                            JoinBySpaceWithQuote(toolPackage.Commands.Select(c => c.Name.ToString()))));
+                            toolPackage.Command.Name));
                 }
 
                 return ToolRestoreResult.Success(
-                    saveToCache: toolPackage.Commands.Select(command => (
-                        new RestoredCommandIdentifier(
+                    saveToCache: 
+                        [(new RestoredCommandIdentifier(
                             toolPackage.Id,
                             toolPackage.Version,
                             NuGetFramework.Parse(targetFramework),
                             Constants.AnyRid,
-                            command.Name),
-                        command)).ToArray(),
+                            toolPackage.Command.Name),
+                        toolPackage.Command)],
                     message: string.Format(
                         LocalizableStrings.RestoreSuccessful,
                         package.PackageId,

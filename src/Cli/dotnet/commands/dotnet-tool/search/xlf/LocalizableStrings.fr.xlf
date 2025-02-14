@@ -47,6 +47,15 @@
         <target state="translated">Dernière version</target>
         <note>Table lable</note>
       </trans-unit>
+      <trans-unit id="NeedNuGetInConfig">
+        <source>The 'dotnet tool search' command unconditionally accesses nuget.org to find tools, but it is not present in your nuget.config. Add it to run this command.
+    This can be done with this command:
+  dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org</source>
+        <target state="translated">La commande « dotnet tool search » accède de manière inconditionnelle nuget.org à la recherche d’outils, mais elle n’est pas présente dans votre nuget.config. Ajoutez-le pour exécuter cette commande.
+    Cette opération peut être effectuée avec cette commande :
+  dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org</target>
+        <note>Do not translate 'dotnet tool search' or 'nuget.config'. Do not localize the last line at all.</note>
+      </trans-unit>
       <trans-unit id="NoResult">
         <source>Could not find any results.</source>
         <target state="translated">Résultats introuvables.</target>
@@ -59,12 +68,12 @@
       </trans-unit>
       <trans-unit id="PrereleaseDescription">
         <source>Include pre-release packages.</source>
-        <target state="needs-review-translation">détermination de l'inclusion ou non des packages en préversion.</target>
+        <target state="translated">Incluez des packages en préversion.</target>
         <note />
       </trans-unit>
       <trans-unit id="SearchTermArgumentName">
         <source>SEARCH_TERM</source>
-        <target state="needs-review-translation">Terme recherché</target>
+        <target state="translated">SEARCH_TERM</target>
         <note />
       </trans-unit>
       <trans-unit id="SearchTermDescription">

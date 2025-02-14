@@ -1,9 +1,5 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System;
-using System.Collections.Generic;
-using System.IO;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 namespace Microsoft.NET.Sdk.WorkloadManifestReader
 {
@@ -13,10 +9,27 @@ namespace Microsoft.NET.Sdk.WorkloadManifestReader
     /// </summary>
     public interface IWorkloadManifestProvider
     {
+        void RefreshWorkloadManifests();
         IEnumerable<ReadableWorkloadManifest> GetManifests();
 
-        IEnumerable<string> GetManifestDirectories();
-
         string GetSdkFeatureBand();
+
+        WorkloadVersionInfo GetWorkloadVersion();
+
+        Dictionary<string, WorkloadSet> GetAvailableWorkloadSets();
+
+        public readonly record struct WorkloadVersionInfo(string Version, bool IsInstalled = true, bool WorkloadSetsEnabledWithoutWorkloadSet = false, string? GlobalJsonPath = null);
+    }
+
+    public record WorkloadVersion
+    {
+        public enum Type
+        {
+            WorkloadSet,
+            LooseManifest
+        }
+
+        public string? Version;
+        public Type WorkloadInstallType;
     }
 }

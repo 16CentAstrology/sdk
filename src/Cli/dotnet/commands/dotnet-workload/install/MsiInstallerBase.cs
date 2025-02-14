@@ -1,19 +1,20 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.Versioning;
+using System.Text.Json;
 using Microsoft.DotNet.Cli.Utils;
+using Microsoft.DotNet.Workloads.Workload;
+using Microsoft.DotNet.Workloads.Workload.History;
 using Microsoft.DotNet.Workloads.Workload.Install.InstallRecord;
 using Microsoft.NET.Sdk.WorkloadManifestReader;
 using Microsoft.Win32;
 using Microsoft.Win32.Msi;
 using NuGet.Versioning;
+using static Microsoft.DotNet.Workloads.Workload.Install.IInstaller;
 using static Microsoft.NET.Sdk.WorkloadManifestReader.WorkloadResolver;
 
 namespace Microsoft.DotNet.Installer.Windows
@@ -24,12 +25,23 @@ namespace Microsoft.DotNet.Installer.Windows
         /// <summary>
         /// Track messages that should never be reported more than once.
         /// </summary>
-        private HashSet<string> _reportedMessages = new HashSet<string>();
+        private HashSet<string> _reportedMessages = new();
 
         /// <summary>
         /// Backing field for the install location of .NET
         /// </summary>
         private string _dotNetHome;
+
+        private JsonSerializerOptions _jsonSerializerOptions = new JsonSerializerOptions()
+        {
+            WriteIndented = true,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        };
+
+        /// <summary>
+        /// Full path to the root directory for storing workload data.
+        /// </summary>
+        public static readonly string WorkloadDataRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "dotnet", "workloads");
 
         /// <summary>
         /// Default reinstall mode (equivalent to VOMUS).
@@ -101,101 +113,16 @@ namespace Microsoft.DotNet.Installer.Windows
             bool verifySignatures, IReporter reporter = null) : base(elevationContext, logger, verifySignatures)
         {
             Cache = new MsiPackageCache(elevationContext, logger, verifySignatures);
-            RecordRepository = new RegistryWorkloadInstallationRecordRepository(elevationContext, logger, VerifySignatures);
+            RecordRepository = new RegistryWorkloadInstallationRecordRepository(elevationContext, logger, verifySignatures);
             UpdateAgent = new WindowsUpdateAgent(logger);
             Reporter = reporter;
-        }
-
-        /// <summary>
-        /// Detect installed workload pack records. Only the default registry hive is searched. Finding a workload pack
-        /// record does not necessarily guarantee that the MSI is installed.
-        /// </summary>
-        protected List<WorkloadPackRecord> GetWorkloadPackRecords()
-        {
-            Log?.LogMessage($"Detecting installed workload packs for {HostArchitecture}.");
-            List<WorkloadPackRecord> workloadPackRecords = new();
-            using RegistryKey installedPacksKey = Registry.LocalMachine.OpenSubKey(@$"SOFTWARE\Microsoft\dotnet\InstalledPacks\{HostArchitecture}");
-
-            static void SetRecordMsiProperties(WorkloadPackRecord record, RegistryKey key)
-            {
-                record.ProviderKeyName = (string)key.GetValue("DependencyProviderKey");
-                record.ProductCode = (string)key.GetValue("ProductCode");
-                record.ProductVersion = new Version((string)key.GetValue("ProductVersion"));
-                record.UpgradeCode = (string)key.GetValue("UpgradeCode");
-            }
-
-            if (installedPacksKey != null)
-            {
-                foreach (string packId in installedPacksKey.GetSubKeyNames())
-                {
-                    using RegistryKey packKey = installedPacksKey.OpenSubKey(packId);
-
-                    foreach (string packVersion in packKey.GetSubKeyNames())
-                    {
-                        using RegistryKey packVersionKey = packKey.OpenSubKey(packVersion);
-
-                        WorkloadPackRecord record = new WorkloadPackRecord
-                        {
-                            MsiId = packId,
-                            MsiNuGetVersion = packVersion,
-                        };
-
-                        SetRecordMsiProperties(record, packVersionKey);
-
-                        record.InstalledPacks.Add((new WorkloadPackId(packId), new NuGetVersion(packVersion)));
-
-                        Log?.LogMessage($"Found workload pack record, Id: {packId}, version: {packVersion}, ProductCode: {record.ProductCode}, provider key: {record.ProviderKeyName}");
-
-                        workloadPackRecords.Add(record);
-                    }
-                }
-            }
-
-            //  Workload pack group installation records are in a similar format as the pack installation records.  They use the "InstalledPackGroups" key,
-            //  and under the key for each pack group/version are keys for the workload pack IDs and versions that are in the pack gorup.
-            using RegistryKey installedPackGroupsKey = Registry.LocalMachine.OpenSubKey(@$"SOFTWARE\Microsoft\dotnet\InstalledPackGroups\{HostArchitecture}");
-            if (installedPackGroupsKey != null)
-            {
-                foreach (string packGroupId in installedPackGroupsKey.GetSubKeyNames())
-                {
-                    using RegistryKey packGroupKey = installedPackGroupsKey.OpenSubKey(packGroupId);
-                    foreach (string packGroupVersion in packGroupKey.GetSubKeyNames())
-                    {
-                        using RegistryKey packGroupVersionKey = packGroupKey.OpenSubKey(packGroupVersion);
-
-                        WorkloadPackRecord record = new WorkloadPackRecord
-                        {
-                            MsiId = packGroupId,
-                            MsiNuGetVersion = packGroupVersion
-                        };
-
-                        SetRecordMsiProperties(record, packGroupVersionKey);
-
-                        Log?.LogMessage($"Found workload pack group record, Id: {packGroupId}, version: {packGroupVersion}, ProductCode: {record.ProductCode}, provider key: {record.ProviderKeyName}");
-
-                        foreach (string packId in packGroupVersionKey.GetSubKeyNames())
-                        {
-                            using RegistryKey packIdKey = packGroupVersionKey.OpenSubKey(packId);
-                            foreach (string packVersion in packIdKey.GetSubKeyNames())
-                            {
-                                record.InstalledPacks.Add((new WorkloadPackId(packId), new NuGetVersion(packVersion)));
-                                Log?.LogMessage($"Found workload pack in group, Id: {packId}, version: {packVersion}");
-                            }
-                        }
-
-                        workloadPackRecords.Add(record);
-                    }
-                }
-            }
-
-            return workloadPackRecords;
         }
 
         /// <summary>
         /// Determines the per-machine install location for .NET. This is similar to the logic in the standalone installers.
         /// </summary>
         /// <returns>The path where .NET is installed based on the host architecture and operating system bitness.</returns>
-        private string GetDotNetHome()
+        internal static string GetDotNetHome()
         {
             // Configure the default location, e.g., if the registry key is absent. Technically that would be suggesting
             // that the install is corrupt or we're being asked to run as an admin install in a non-admin deployment.
@@ -273,6 +200,122 @@ namespace Microsoft.DotNet.Installer.Windows
         }
 
         /// <summary>
+        /// Instructs future workload operations to use workload sets or loose manifests, per newMode.
+        /// </summary>
+        /// <param name="sdkFeatureBand">The feature band to update</param>
+        /// <param name="newMode">Where to use loose manifests or workload sets</param>
+        /// <param name="logFile">Full path of the log file</param>
+        /// <returns>Error code indicating the result of the operation</returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        protected void UpdateInstallMode(SdkFeatureBand sdkFeatureBand, bool? newMode)
+        {
+            string path = Path.Combine(WorkloadInstallType.GetInstallStateFolder(sdkFeatureBand, DotNetHome), "default.json");
+            var installStateContents = InstallStateContents.FromPath(path);
+            if (installStateContents.UseWorkloadSets == newMode)
+            {
+                return;
+            }
+
+            Elevate();
+
+            if (IsElevated)
+            {
+                // Create the parent folder for the state file and set up all required ACLs
+                installStateContents.UseWorkloadSets = newMode;
+                CreateSecureFileInDirectory(path, installStateContents.ToString());
+            }
+            else if (IsClient)
+            {
+                InstallResponseMessage response = Dispatcher.SendUpdateWorkloadModeRequest(sdkFeatureBand, newMode);
+                ExitOnFailure(response, "Failed to update install mode.");
+            }
+            else
+            {
+                throw new InvalidOperationException($"Invalid configuration: elevated: {IsElevated}, client: {IsClient}");
+            }
+        }
+
+        public void AdjustWorkloadSetInInstallState(SdkFeatureBand sdkFeatureBand, string workloadVersion)
+        {
+            string path = Path.Combine(WorkloadInstallType.GetInstallStateFolder(sdkFeatureBand, DotNetHome), "default.json");
+            var installStateContents = InstallStateContents.FromPath(path);
+            if ((installStateContents.WorkloadVersion == null && workloadVersion == null) ||
+                (installStateContents.WorkloadVersion != null && installStateContents.WorkloadVersion.Equals(workloadVersion)))
+            {
+                return;
+            }
+
+            Elevate();
+
+            if (IsElevated)
+            {
+                // Create the parent folder for the state file and set up all required ACLs
+                installStateContents.WorkloadVersion = workloadVersion;
+                CreateSecureFileInDirectory(path, installStateContents.ToString());
+            }
+            else if (IsClient)
+            {
+                InstallResponseMessage response = Dispatcher.SendUpdateWorkloadSetRequest(sdkFeatureBand, workloadVersion);
+                ExitOnFailure(response, "Failed to update install mode.");
+            }
+            else
+            {
+                throw new InvalidOperationException($"Invalid configuration: elevated: {IsElevated}, client: {IsClient}");
+            }
+        }
+
+        public void RecordWorkloadSetInGlobalJson(SdkFeatureBand sdkFeatureBand, string globalJsonPath, string workloadSetVersion)
+        {
+            Elevate();
+
+            if (IsElevated)
+            {
+                var workloadSetsFile = new GlobalJsonWorkloadSetsFile(sdkFeatureBand, DotNetHome);
+                SecurityUtils.CreateSecureDirectory(Path.GetDirectoryName(workloadSetsFile.Path));
+                workloadSetsFile.RecordWorkloadSetInGlobalJson(globalJsonPath, workloadSetVersion);
+                SecurityUtils.SecureFile(workloadSetsFile.Path);
+            }
+            else if (IsClient)
+            {
+                InstallResponseMessage response = Dispatcher.SendRecordWorkloadSetInGlobalJsonRequest(sdkFeatureBand, globalJsonPath, workloadSetVersion);
+                ExitOnFailure(response, "Failed to record workload set version in GC Roots file.");
+            }
+            else
+            {
+                throw new InvalidOperationException($"Invalid configuration: elevated: {IsElevated}, client: {IsClient}");
+            }
+        }
+
+        public Dictionary<string, string> GetGlobalJsonWorkloadSetVersions(SdkFeatureBand sdkFeatureBand)
+        {
+            Elevate();
+
+            if (IsElevated)
+            {
+                var workloadSetsFile = new GlobalJsonWorkloadSetsFile(sdkFeatureBand, DotNetHome);
+                SecurityUtils.CreateSecureDirectory(Path.GetDirectoryName(workloadSetsFile.Path));
+                var versions = workloadSetsFile.GetGlobalJsonWorkloadSetVersions();
+
+                //  GetGlobalJsonWorkloadSetVersions will not create the file if it doesn't exist, so don't try to secure a non-existant file
+                if (File.Exists(workloadSetsFile.Path))
+                {
+                    SecurityUtils.SecureFile(workloadSetsFile.Path);
+                }
+                return versions;
+            }
+            else if (IsClient)
+            {
+                InstallResponseMessage response = Dispatcher.SendGetGlobalJsonWorkloadSetVersionsRequest(sdkFeatureBand);
+                ExitOnFailure(response, "Failed to get global.json GC roots");
+                return response.GlobalJsonWorkloadSetVersions;
+            }
+            else
+            {
+                throw new InvalidOperationException($"Invalid configuration: elevated: {IsElevated}, client: {IsClient}");
+            }
+        }
+
+        /// <summary>
         /// Installs the specified MSI.
         /// </summary>
         /// <param name="packagePath">The full path to the MSI package.</param>
@@ -339,6 +382,19 @@ namespace Microsoft.DotNet.Installer.Windows
             }
 
             throw new InvalidOperationException($"Invalid configuration: elevated: {IsElevated}, client: {IsClient}");
+        }
+
+        internal protected string GetWorkloadHistoryDirectory(string sdkFeatureBand)
+        {
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "dotnet", "workloads", RuntimeInformation.ProcessArchitecture.ToString(), sdkFeatureBand.ToString(), "history");
+        }
+
+        public void WriteWorkloadHistoryRecord(WorkloadHistoryRecord workloadHistoryRecord, string sdkFeatureBand)
+        {
+            var historyDirectory = GetWorkloadHistoryDirectory(sdkFeatureBand);
+            string logFile = Path.Combine(historyDirectory, $"{workloadHistoryRecord.TimeStarted:yyyy'-'MM'-'dd'T'HHmmss}_{workloadHistoryRecord.CommandName}.json");
+            Directory.CreateDirectory(historyDirectory);
+            File.WriteAllText(logFile, (JsonSerializer.Serialize(workloadHistoryRecord, new JsonSerializerOptions() { WriteIndented = true })));
         }
 
         /// <summary>
@@ -418,7 +474,7 @@ namespace Microsoft.DotNet.Installer.Windows
         /// Get a list of all MSI based SDK installations that match the current host architecture.
         /// </summary>
         /// <returns>A collection of all the installed SDKs. The collection may be empty if no installed versions are found.</returns>
-        protected IEnumerable<string> GetInstalledSdkVersions()
+        internal static IEnumerable<string> GetInstalledSdkVersions()
         {
             // The SDK, regardless of the installer's platform, writes detection keys to the 32-bit hive.
             using RegistryKey hklm32 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32);
@@ -455,7 +511,7 @@ namespace Microsoft.DotNet.Installer.Windows
         /// <param name="dependent">The dependent to add or remove.</param>
         protected void UpdateDependent(InstallRequestType requestType, string providerKeyName, string dependent)
         {
-            DependencyProvider provider = new DependencyProvider(providerKeyName, allUsers: true);
+            DependencyProvider provider = new(providerKeyName, allUsers: true);
 
             if (provider.Dependents.Contains(dependent) && requestType == InstallRequestType.AddDependent)
             {
@@ -491,6 +547,80 @@ namespace Microsoft.DotNet.Installer.Windows
                 InstallResponseMessage response = Dispatcher.SendDependentRequest(requestType, providerKeyName, dependent);
                 ExitOnFailure(response, $"Failed to update dependent, providerKey: {providerKeyName}, dependent: {dependent}.");
             }
+        }
+
+        /// <summary>
+        /// Deletes manifests from the install state file for the specified feature band.
+        /// </summary>
+        /// <param name="sdkFeatureBand">The feature band of the install state file.</param>
+        public void RemoveManifestsFromInstallState(SdkFeatureBand sdkFeatureBand)
+        {
+            string path = Path.Combine(WorkloadInstallType.GetInstallStateFolder(sdkFeatureBand, DotNetHome), "default.json");
+            var installStateContents = InstallStateContents.FromPath(path);
+            if (installStateContents.Manifests == null)
+            {
+                return;
+            }
+
+            if (!File.Exists(path))
+            {
+                Log?.LogMessage($"Install state file does not exist: {path}");
+                return;
+            }
+
+            Elevate();
+
+            if (IsElevated)
+            {
+                if (File.Exists(path))
+                {
+                    installStateContents.Manifests = null;
+                    File.WriteAllText(path, installStateContents.ToString());
+                }
+            }
+            else if (IsClient)
+            {
+                InstallResponseMessage response = Dispatcher.SendRemoveManifestsFromInstallStateFileRequest(sdkFeatureBand);
+                ExitOnFailure(response, $"Failed to remove install state file: {path}");
+            }
+        }
+
+        /// <summary>
+        /// Writes the contents of the install state JSON file.
+        /// </summary>
+        /// <param name="sdkFeatureBand">The path of the isntall state file to write.</param>
+        /// <param name="manifestContents">The contents of the JSON file, formatted as a single line.</param>
+        public void SaveInstallStateManifestVersions(SdkFeatureBand sdkFeatureBand, Dictionary<string, string> manifestContents)
+        {
+            string path = Path.Combine(WorkloadInstallType.GetInstallStateFolder(sdkFeatureBand, DotNetHome), "default.json");
+            var installStateContents = InstallStateContents.FromPath(path);
+            if (installStateContents.Manifests != null && // manifestContents should not be null here
+                installStateContents.Manifests.Count == manifestContents.Count &&
+                installStateContents.Manifests.All(m => manifestContents.TryGetValue(m.Key, out var val) && val.Equals(m.Value)))
+            {
+                return;
+            }
+
+            Elevate();
+
+            if (IsElevated)
+            {
+                // Create the parent folder for the state file and set up all required ACLs
+                installStateContents.Manifests = manifestContents;
+                CreateSecureFileInDirectory(path, installStateContents.ToString());
+            }
+            else if (IsClient)
+            {
+                InstallResponseMessage respone = Dispatcher.SendSaveInstallStateManifestVersions(sdkFeatureBand, manifestContents);
+                ExitOnFailure(respone, $"Failed to write install state file: {path}");
+            }
+        }
+
+        private void CreateSecureFileInDirectory(string path, string contents)
+        {
+            SecurityUtils.CreateSecureDirectory(Path.GetDirectoryName(path));
+            File.WriteAllText(path, contents);
+            SecurityUtils.SecureFile(path);
         }
     }
 }

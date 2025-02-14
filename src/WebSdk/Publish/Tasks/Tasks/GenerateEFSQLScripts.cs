@@ -1,7 +1,7 @@
-﻿using System;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using System.Diagnostics;
-using System.IO;
-using System.Text;
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
@@ -12,17 +12,17 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
     public class GenerateEFSQLScripts : Task
     {
         [Required]
-        public string ProjectDirectory { get; set; }
+        public string? ProjectDirectory { get; set; }
         [Required]
-        public string EFPublishDirectory { get; set; }
+        public string? EFPublishDirectory { get; set; }
         [Required]
-        public ITaskItem[] EFMigrations { get; set; }
+        public ITaskItem[]? EFMigrations { get; set; }
         [Required]
-        public string Configuration { get; set; }
-        public string EFSQLScriptsFolderName { get; set; }
-        public string EFMigrationsAdditionalArgs { get; set; }
+        public string? Configuration { get; set; }
+        public string? EFSQLScriptsFolderName { get; set; }
+        public string? EFMigrationsAdditionalArgs { get; set; }
         [Output]
-        public ITaskItem[] EFSQLScripts { get; set; }
+        public ITaskItem[]? EFSQLScripts { get; set; }
 
         public override bool Execute()
         {
@@ -40,6 +40,10 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
         public bool GenerateEFSQLScriptsInternal(bool isLoggingEnabled = true)
         {
             InitializeProperties();
+            if (EFMigrations is null || EFPublishDirectory is null || EFSQLScriptsFolderName is null)
+            {
+                return false;
+            }
             EFSQLScripts = new ITaskItem[EFMigrations.Length];
             int index = 0;
             foreach (ITaskItem dbContext in EFMigrations)
@@ -71,17 +75,17 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
             }
         }
 
-        private object _sync = new object();
-        private Process _runningProcess;
+        private object _sync = new();
+        private Process? _runningProcess;
         private int _processExitCode;
-        private StringBuilder _standardOut = new StringBuilder();
-        private StringBuilder _standardError = new StringBuilder();
+        private StringBuilder _standardOut = new();
+        private StringBuilder _standardError = new();
         private const string AspNetCoreEnvironment = "ASPNETCORE_ENVIRONMENT";
         private bool GenerateSQLScript(string sqlFileFullPath, string dbContextName, bool isLoggingEnabled = true)
         {
-            string previousAspNetCoreEnvironment = Environment.GetEnvironmentVariable(AspNetCoreEnvironment); 
+            string? previousAspNetCoreEnvironment = Environment.GetEnvironmentVariable(AspNetCoreEnvironment);
             Environment.SetEnvironmentVariable(AspNetCoreEnvironment, "Development");
-            ProcessStartInfo psi = new ProcessStartInfo("dotnet", $@"ef migrations script --no-build --idempotent --configuration {Configuration} --output ""{sqlFileFullPath}"" --context {dbContextName} {EFMigrationsAdditionalArgs}")
+            ProcessStartInfo psi = new("dotnet", $@"ef migrations script --no-build --idempotent --configuration {Configuration} --output ""{sqlFileFullPath}"" --context {dbContextName} {EFMigrationsAdditionalArgs}")
             {
                 WorkingDirectory = ProjectDirectory,
                 CreateNoWindow = true,
@@ -90,7 +94,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
                 UseShellExecute = false
             };
 
-            Process proc = null;
+            Process? proc = null;
 
             try
             {
@@ -99,9 +103,11 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
                     Log.LogMessage(MessageImportance.High, string.Format("Executing command: {0} {1}", psi.FileName, psi.Arguments));
                 }
 
-                proc = new Process();
-                proc.StartInfo = psi;
-                proc.EnableRaisingEvents = true;
+                proc = new Process
+                {
+                    StartInfo = psi,
+                    EnableRaisingEvents = true
+                };
                 proc.OutputDataReceived += Proc_OutputDataReceived;
                 proc.ErrorDataReceived += Proc_ErrorDataReceived;
                 proc.Exited += Proc_Exited;
@@ -139,7 +145,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
             return true;
         }
 
-        private void Proc_Exited(object sender, EventArgs e)
+        private void Proc_Exited(object? sender, EventArgs e)
         {
             if (_runningProcess != null)
             {
@@ -159,7 +165,6 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
                     _runningProcess = null;
                 }
             }
-
         }
 
         private void Proc_ErrorDataReceived(object sender, DataReceivedEventArgs e)

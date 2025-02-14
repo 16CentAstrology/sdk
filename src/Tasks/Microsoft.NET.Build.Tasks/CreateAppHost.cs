@@ -1,9 +1,6 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.IO;
-using System.Threading;
 using Microsoft.Build.Framework;
 using Microsoft.NET.HostModel;
 using Microsoft.NET.HostModel.AppHost;
@@ -49,6 +46,12 @@ namespace Microsoft.NET.Build.Tasks
 
         public bool EnableMacOSCodeSign { get; set; } = false;
 
+        public bool DisableCetCompat { get; set; } = false;
+
+        public ITaskItem[] DotNetSearchLocations { get; set; }
+
+        public string AppRelativeDotNet { get; set; } = null;
+
         protected override void ExecuteCore()
         {
             try
@@ -56,44 +59,59 @@ namespace Microsoft.NET.Build.Tasks
                 var isGUI = WindowsGraphicalUserInterface;
                 var resourcesAssembly = IntermediateAssembly;
 
-                if (!ResourceUpdater.IsSupportedOS())
-                {
-                    if (isGUI)
-                    {
-                        Log.LogWarning(Strings.AppHostCustomizationRequiresWindowsHostWarning);
-                    }
-
-                    isGUI = false;
-                    resourcesAssembly = null;
-                }
-
                 int attempts = 0;
-                
+
                 while (true)
                 {
                     try
                     {
+                        HostWriter.DotNetSearchOptions options = null;
+                        if (DotNetSearchLocations?.Length > 0)
+                        {
+                            HostWriter.DotNetSearchOptions.SearchLocation searchLocation = default;
+                            foreach (var locationItem in DotNetSearchLocations)
+                            {
+                                if (Enum.TryParse(locationItem.ItemSpec, out HostWriter.DotNetSearchOptions.SearchLocation location)
+                                    && Enum.IsDefined(typeof(HostWriter.DotNetSearchOptions.SearchLocation), location))
+                                {
+                                    searchLocation |= location;
+                                }
+                                else
+                                {
+                                    throw new BuildErrorException(Strings.InvalidAppHostDotNetSearch, locationItem.ItemSpec);
+                                }
+                            }
+
+                            options = new HostWriter.DotNetSearchOptions()
+                            {
+                                Location = searchLocation,
+                                AppRelativeDotNet = AppRelativeDotNet
+                            };
+                        }
+
                         HostWriter.CreateAppHost(appHostSourceFilePath: AppHostSourcePath,
                                                 appHostDestinationFilePath: AppHostDestinationPath,
                                                 appBinaryFilePath: AppBinaryName,
                                                 windowsGraphicalUserInterface: isGUI,
                                                 assemblyToCopyResourcesFrom: resourcesAssembly,
-                                                enableMacOSCodeSign: EnableMacOSCodeSign);
+                                                enableMacOSCodeSign: EnableMacOSCodeSign,
+                                                disableCetCompat: DisableCetCompat,
+                                                dotNetSearchOptions: options);
                         return;
                     }
                     catch (Exception ex) when (ex is IOException ||
                                                ex is UnauthorizedAccessException ||
-                                               ex is HResultException ||
                                                (ex is AggregateException && (ex.InnerException is IOException || ex.InnerException is UnauthorizedAccessException)))
                     {
-                        if (Retries < 0 || attempts == Retries) {
+                        if (Retries < 0 || attempts == Retries)
+                        {
                             throw;
                         }
 
                         ++attempts;
 
                         string message = ex.Message;
-                        if(ex is AggregateException)
+                        if (ex is AggregateException)
                         {
                             message = ex.InnerException.Message;
                         }
@@ -104,7 +122,8 @@ namespace Microsoft.NET.Build.Tasks
                                 Retries + 1,
                                 message));
 
-                        if (RetryDelayMilliseconds > 0) {
+                        if (RetryDelayMilliseconds > 0)
+                        {
                             Thread.Sleep(RetryDelayMilliseconds);
                         }
                     }

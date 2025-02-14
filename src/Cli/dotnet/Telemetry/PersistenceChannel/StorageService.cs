@@ -1,15 +1,8 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.ApplicationInsights.Channel;
-using Microsoft.DotNet.Cli.Utils;
 using Microsoft.DotNet.Configurer;
 
 namespace Microsoft.DotNet.Cli.Telemetry.PersistenceChannel
@@ -17,10 +10,10 @@ namespace Microsoft.DotNet.Cli.Telemetry.PersistenceChannel
     internal sealed class StorageService : BaseStorageService
     {
         private const string DefaultStorageFolderName = "TelemetryStorageService";
-        private readonly FixedSizeQueue<string> _deletedFilesQueue = new FixedSizeQueue<string>(10);
+        private readonly FixedSizeQueue<string> _deletedFilesQueue = new(10);
 
-        private readonly object _peekLockObj = new object();
-        private readonly object _storageFolderLock = new object();
+        private readonly object _peekLockObj = new();
+        private readonly object _storageFolderLock = new();
         private string _storageDirectoryPath;
         private string _storageDirectoryPathUsed;
         private long _storageCountFiles;
@@ -328,18 +321,17 @@ namespace Microsoft.DotNet.Cli.Telemetry.PersistenceChannel
         }
 
         /// <summary>
-        ///     Enqueue is saving a transmission to a <c>tmp</c> file and after a successful write operation it renames it to a
+        ///     Enqueue is saving a transmission to a file with a guid, and after a successful write operation it renames it to a
         ///     <c>trn</c> file.
         ///     A file without a <c>trn</c> extension is ignored by Storage.Peek(), so if a process is taken down before rename
-        ///     happens
-        ///     it will stay on the disk forever.
-        ///     This thread deletes files with the <c>tmp</c> extension that exists on disk for more than 5 minutes.
+        ///     happens it will stay on the disk forever.
+        ///     This thread deletes files with the <c>trn</c> extension that exists on disk for more than 5 minutes.
         /// </summary>
         private void DeleteObsoleteFiles()
         {
             try
             {
-                IEnumerable<string> files = GetFiles("*.tmp", 50);
+                IEnumerable<string> files = GetFiles("*.trn", 50);
                 foreach (string file in files)
                 {
                     DateTime creationTime = File.GetCreationTimeUtc(Path.Combine(StorageFolder, file));

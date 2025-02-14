@@ -1,12 +1,13 @@
-﻿using System;
-using System.IO;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using System.Net.Http;
 using Microsoft.Build.Utilities;
 using Microsoft.NET.Sdk.Publish.Tasks.Properties;
 
 namespace Microsoft.NET.Sdk.Publish.Tasks.Kudu
 {
-    public class KuduZipDeploy: KuduConnect
+    public class KuduZipDeploy : KuduConnect
     {
         private TaskLoggingHelper _logger;
 
@@ -20,17 +21,18 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.Kudu
         {
             get
             {
-                return String.Format(ConnectionInfo.DestinationUrl, ConnectionInfo.SiteName, "zip/site/wwwroot/");
+                return ConnectionInfo.DestinationUrl is null
+                    ? string.Empty : string.Format(ConnectionInfo.DestinationUrl, ConnectionInfo.SiteName, "zip/site/wwwroot/");
             }
         }
 
-        public async System.Threading.Tasks.Task<bool> DeployAsync(string zipFileFullPath)
+        public async Task<bool> DeployAsync(string? zipFileFullPath)
         {
 
             if (!File.Exists(zipFileFullPath))
             {
                 // If the source file directory does not exist quit early.
-                _logger.LogError(String.Format(Resources.KUDUDEPLOY_AzurePublishErrorReason, Resources.KUDUDEPLOY_DeployOutputPathEmpty));
+                _logger.LogError(string.Format(Resources.KUDUDEPLOY_AzurePublishErrorReason, Resources.KUDUDEPLOY_DeployOutputPathEmpty));
                 return false;
             }
 
@@ -38,9 +40,9 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.Kudu
             return success;
         }
 
-        private async System.Threading.Tasks.Task<bool> PostZipAsync(string zipFilePath)
+        private async Task<bool> PostZipAsync(string? zipFilePath)
         {
-            if (String.IsNullOrEmpty(zipFilePath))
+            if (string.IsNullOrEmpty(zipFilePath))
             {
                 return false;
             }
@@ -57,12 +59,12 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.Kudu
                         req.Headers.Add("Authorization", "Basic " + AuthorizationInfo);
                         req.Content = content;
 
-                        _logger.LogMessage(Microsoft.Build.Framework.MessageImportance.High, Resources.KUDUDEPLOY_PublishAzure);
+                        _logger.LogMessage(Build.Framework.MessageImportance.High, Resources.KUDUDEPLOY_PublishAzure);
                         using (var response = await client.SendAsync(req))
                         {
                             if (!response.IsSuccessStatusCode)
                             {
-                                _logger.LogError(String.Format(Resources.KUDUDEPLOY_PublishZipFailedReason, ConnectionInfo.SiteName, response.ReasonPhrase));
+                                _logger.LogError(string.Format(Resources.KUDUDEPLOY_PublishZipFailedReason, ConnectionInfo.SiteName, response.ReasonPhrase));
                                 return false;
                             }
                         }

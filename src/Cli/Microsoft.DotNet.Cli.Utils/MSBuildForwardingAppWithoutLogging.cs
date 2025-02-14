@@ -1,5 +1,5 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 #if NET
 
@@ -17,18 +17,23 @@ namespace Microsoft.DotNet.Cli.Utils
     {
         private static readonly bool AlwaysExecuteMSBuildOutOfProc = Env.GetEnvironmentVariableAsBool("DOTNET_CLI_RUN_MSBUILD_OUTOFPROC");
         private static readonly bool UseMSBuildServer = Env.GetEnvironmentVariableAsBool("DOTNET_CLI_USE_MSBUILD_SERVER", false);
+        private static readonly string? TerminalLoggerDefault = Env.GetEnvironmentVariable("DOTNET_CLI_CONFIGURE_MSBUILD_TERMINAL_LOGGER");
 
+        public static string MSBuildVersion
+        {
+            get => Microsoft.Build.Evaluation.ProjectCollection.DisplayVersion;
+        }
         private const string MSBuildExeName = "MSBuild.dll";
 
         private const string SdksDirectoryName = "Sdks";
 
         // Null if we're running MSBuild in-proc.
-        private ForwardingAppImplementation _forwardingApp;
+        private ForwardingAppImplementation? _forwardingApp;
 
         // Command line arguments we're asked to forward to MSBuild.
         private readonly IEnumerable<string> _argsToForward;
 
-        internal static string MSBuildExtensionsPathTestHook = null;
+        internal static string? MSBuildExtensionsPathTestHook = null;
 
         // Path to the MSBuild binary to use.
         public string MSBuildPath { get; }
@@ -37,21 +42,33 @@ namespace Microsoft.DotNet.Cli.Utils
         public bool ExecuteMSBuildOutOfProc => _forwardingApp != null;
 
         private readonly Dictionary<string, string> _msbuildRequiredEnvironmentVariables =
-            new Dictionary<string, string>
+            new()
             {
                 { "MSBuildExtensionsPath", MSBuildExtensionsPathTestHook ?? AppContext.BaseDirectory },
                 { "MSBuildSDKsPath", GetMSBuildSDKsPath() },
                 { "DOTNET_HOST_PATH", GetDotnetPath() },
             };
 
-        private readonly IEnumerable<string> _msbuildRequiredParameters =
-            new List<string> { "-maxcpucount", "-verbosity:m" };
+        private readonly List<string> _msbuildRequiredParameters =
+            [ "-maxcpucount", "-verbosity:m" ];
 
-        public MSBuildForwardingAppWithoutLogging(IEnumerable<string> argsToForward, string msbuildPath = null)
+        public MSBuildForwardingAppWithoutLogging(IEnumerable<string> argsToForward, string? msbuildPath = null, bool includeLogo = false)
         {
             string defaultMSBuildPath = GetMSBuildExePath();
 
-            _argsToForward = argsToForward;
+            _argsToForward = includeLogo ? argsToForward : ["-nologo", ..argsToForward];
+            string? tlpDefault = TerminalLoggerDefault;
+            // new for .NET 9 - default TL to auto (aka enable in non-CI scenarios)
+            if (string.IsNullOrWhiteSpace(tlpDefault))
+            {
+                tlpDefault = "auto";
+            }
+
+            if (!string.IsNullOrWhiteSpace(tlpDefault))
+            {
+                _msbuildRequiredParameters.Add($"-tlp:default={tlpDefault}");
+            }
+
             MSBuildPath = msbuildPath ?? defaultMSBuildPath;
 
             EnvironmentVariable("MSBUILDUSESERVER", UseMSBuildServer ? "1" : "0");
@@ -67,7 +84,7 @@ namespace Microsoft.DotNet.Cli.Utils
         {
             _forwardingApp = new ForwardingAppImplementation(
                 MSBuildPath,
-                _msbuildRequiredParameters.Concat(_argsToForward.Select(Escape)),
+                GetAllArguments(),
                 environmentVariables: _msbuildRequiredEnvironmentVariables);
         }
 
@@ -95,13 +112,13 @@ namespace Microsoft.DotNet.Cli.Utils
 
             if (value == string.Empty || value == "\0")
             {
-                // Do not allow MSBUILDUSESERVER as null env vars are not properly transferred to build nodes
-                _msbuildRequiredEnvironmentVariables["MSBUILDUSESERVER"] = "0";
-
                 // Unlike ProcessStartInfo.EnvironmentVariables, Environment.SetEnvironmentVariable can't set a variable
                 // to an empty value, so we just fall back to calling MSBuild out-of-proc if we encounter this case.
                 // https://github.com/dotnet/runtime/issues/50554
                 InitializeForOutOfProcForwarding();
+
+                // Disable MSBUILDUSESERVER if any env vars are null as those are not properly transferred to build nodes
+                _msbuildRequiredEnvironmentVariables["MSBUILDUSESERVER"] = "0";
             }
         }
 
@@ -120,7 +137,7 @@ namespace Microsoft.DotNet.Cli.Utils
         public int ExecuteInProc(string[] arguments)
         {
             // Save current environment variables before overwriting them.
-            Dictionary<string, string> savedEnvironmentVariables = new Dictionary<string, string>();
+            Dictionary<string, string?> savedEnvironmentVariables = new();
             try
             {
                 foreach (KeyValuePair<string, string> kvp in _msbuildRequiredEnvironmentVariables)
@@ -132,7 +149,7 @@ namespace Microsoft.DotNet.Cli.Utils
                 try
                 {
                     // Execute MSBuild in the current process by calling its Main method.
-                    return Microsoft.Build.CommandLine.MSBuildApp.Main(arguments);
+                    return Build.CommandLine.MSBuildApp.Main(arguments);
                 }
                 catch (Exception exception)
                 {
@@ -148,7 +165,7 @@ namespace Microsoft.DotNet.Cli.Utils
             finally
             {
                 // Restore saved environment variables.
-                foreach (KeyValuePair<string, string> kvp in savedEnvironmentVariables)
+                foreach (KeyValuePair<string, string?> kvp in savedEnvironmentVariables)
                 {
                     Environment.SetEnvironmentVariable(kvp.Key, kvp.Value);
                 }

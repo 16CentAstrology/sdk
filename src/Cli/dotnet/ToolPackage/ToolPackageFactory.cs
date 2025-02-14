@@ -1,8 +1,9 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Generic;
 using Microsoft.DotNet.Cli.Utils;
+using Microsoft.DotNet.Cli.ToolPackage;
 using Microsoft.DotNet.Configurer;
 using Microsoft.DotNet.Tools.Tool.Install;
 using Microsoft.Extensions.EnvironmentAbstractions;
@@ -11,15 +12,13 @@ namespace Microsoft.DotNet.ToolPackage
 {
     internal static class ToolPackageFactory
     {
-        public static (IToolPackageStore, IToolPackageStoreQuery, IToolPackageInstaller) CreateToolPackageStoresAndInstaller(
-            DirectoryPath? nonGlobalLocation = null,  IEnumerable<string> additionalRestoreArguments = null)
+        public static (IToolPackageStore, IToolPackageStoreQuery, IToolPackageDownloader) CreateToolPackageStoresAndDownloader(
+            DirectoryPath? nonGlobalLocation = null, IEnumerable<string> additionalRestoreArguments = null, string runtimeJsonPathForTests = null)
         {
             ToolPackageStoreAndQuery toolPackageStore = CreateConcreteToolPackageStore(nonGlobalLocation);
-            var toolPackageInstaller = new ToolPackageInstaller(
-                toolPackageStore,
-                 new ProjectRestorer(additionalRestoreArguments: additionalRestoreArguments));
+            var toolPackageDownloader = new ToolPackageDownloader(toolPackageStore, runtimeJsonPathForTests);
 
-            return (toolPackageStore, toolPackageStore, toolPackageInstaller);
+            return (toolPackageStore, toolPackageStore, toolPackageDownloader);
         }
 
         public static (IToolPackageStore, IToolPackageStoreQuery, IToolPackageUninstaller) CreateToolPackageStoresAndUninstaller(
@@ -34,22 +33,21 @@ namespace Microsoft.DotNet.ToolPackage
 
         public static (IToolPackageStore,
             IToolPackageStoreQuery,
-            IToolPackageInstaller,
+            IToolPackageDownloader,
             IToolPackageUninstaller)
-            CreateToolPackageStoresAndInstallerAndUninstaller(
-                DirectoryPath? nonGlobalLocation = null, IEnumerable<string> additionalRestoreArguments = null)
+            CreateToolPackageStoresAndDownloaderAndUninstaller(
+                DirectoryPath? nonGlobalLocation = null, IEnumerable<string> additionalRestoreArguments = null, string currentWorkingDirectory = null)
         {
             ToolPackageStoreAndQuery toolPackageStore = CreateConcreteToolPackageStore(nonGlobalLocation);
-            var toolPackageInstaller = new ToolPackageInstaller(
-                toolPackageStore,
-                new ProjectRestorer(additionalRestoreArguments: additionalRestoreArguments));
+            var toolPackageDownloader = new ToolPackageDownloader(toolPackageStore, currentWorkingDirectory: currentWorkingDirectory);
             var toolPackageUninstaller = new ToolPackageUninstaller(
                 toolPackageStore);
 
-            return (toolPackageStore, toolPackageStore, toolPackageInstaller, toolPackageUninstaller);
+            return (toolPackageStore, toolPackageStore, toolPackageDownloader, toolPackageUninstaller);
         }
 
-        public static IToolPackageStoreQuery CreateToolPackageStoreQuery(
+
+        public static ToolPackageStoreAndQuery CreateToolPackageStoreQuery(
             DirectoryPath? nonGlobalLocation = null)
         {
             return CreateConcreteToolPackageStore(nonGlobalLocation);
@@ -60,7 +58,7 @@ namespace Microsoft.DotNet.ToolPackage
             return new DirectoryPath(CliFolderPathCalculator.ToolsPackagePath);
         }
 
-        private static ToolPackageStoreAndQuery CreateConcreteToolPackageStore(
+        public static ToolPackageStoreAndQuery CreateConcreteToolPackageStore(
             DirectoryPath? nonGlobalLocation = null)
         {
             var toolPackageStore =

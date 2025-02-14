@@ -1,13 +1,6 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-//Microsoft.NET.Build.Extensions.Tasks (net7.0) has nullables disabled
-#pragma warning disable IDE0240 // Remove redundant nullable directive
-#nullable disable
-#pragma warning restore IDE0240 // Remove redundant nullable directive
-
-using System;
-using System.Collections.Generic;
 using Microsoft.Build.Framework;
 
 #if EXTENSIONS
@@ -25,20 +18,20 @@ namespace Microsoft.NET.Build.Tasks.ConflictResolution
     /// </summary>
     internal class PackageOverrideResolver<TConflictItem> where TConflictItem : class, IConflictItem
     {
-        private ITaskItem[] _packageOverrideItems;
-        private Lazy<Dictionary<string, PackageOverride>> _packageOverrides;
+        private ITaskItem[]? _packageOverrideItems;
+        private Lazy<Dictionary<string, PackageOverride>?> _packageOverrides;
 
-        public PackageOverrideResolver(ITaskItem[] packageOverrideItems)
+        public PackageOverrideResolver(ITaskItem[]? packageOverrideItems)
         {
             _packageOverrideItems = packageOverrideItems;
-            _packageOverrides = new Lazy<Dictionary<string, PackageOverride>>(() => BuildPackageOverrides());
+            _packageOverrides = new Lazy<Dictionary<string, PackageOverride>?>(() => BuildPackageOverrides());
         }
 
-        public Dictionary<string, PackageOverride> PackageOverrides => _packageOverrides.Value;
+        public Dictionary<string, PackageOverride>? PackageOverrides => _packageOverrides.Value;
 
-        private Dictionary<string, PackageOverride> BuildPackageOverrides()
+        private Dictionary<string, PackageOverride>? BuildPackageOverrides()
         {
-            Dictionary<string, PackageOverride> result;
+            Dictionary<string, PackageOverride>? result;
 
             if (_packageOverrideItems?.Length > 0)
             {
@@ -48,7 +41,7 @@ namespace Microsoft.NET.Build.Tasks.ConflictResolution
                 {
                     PackageOverride packageOverride = PackageOverride.Create(packageOverrideItem);
 
-                    if (result.TryGetValue(packageOverride.PackageName, out PackageOverride existing))
+                    if (result.TryGetValue(packageOverride.PackageName, out PackageOverride? existing))
                     {
                         MergePackageOverrides(packageOverride, existing);
                     }
@@ -74,7 +67,7 @@ namespace Microsoft.NET.Build.Tasks.ConflictResolution
         {
             foreach (KeyValuePair<string, OverrideVersion> newOverride in newPackageOverride.OverriddenPackages)
             {
-                if (existingPackageOverride.OverriddenPackages.TryGetValue(newOverride.Key, out OverrideVersion existingOverrideVersion))
+                if (existingPackageOverride.OverriddenPackages.TryGetValue(newOverride.Key, out OverrideVersion? existingOverrideVersion))
                 {
                     if (existingOverrideVersion < newOverride.Value)
                     {
@@ -88,12 +81,12 @@ namespace Microsoft.NET.Build.Tasks.ConflictResolution
             }
         }
 
-        public TConflictItem Resolve(TConflictItem item1, TConflictItem item2)
+        public TConflictItem? Resolve(TConflictItem item1, TConflictItem item2)
         {
             if (PackageOverrides != null && item1.PackageId != null && item2.PackageId != null)
             {
-                PackageOverride packageOverride;
-                OverrideVersion version;
+                PackageOverride? packageOverride;
+                OverrideVersion? version;
                 if (PackageOverrides.TryGetValue(item1.PackageId, out packageOverride)
                     && packageOverride.OverriddenPackages.TryGetValue(item2.PackageId, out version)
                     && item2.PackageVersion != null

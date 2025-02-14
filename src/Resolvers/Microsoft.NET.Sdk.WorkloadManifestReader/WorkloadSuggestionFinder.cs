@@ -1,10 +1,5 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 namespace Microsoft.NET.Sdk.WorkloadManifestReader
 {
@@ -38,7 +33,7 @@ namespace Microsoft.NET.Sdk.WorkloadManifestReader
         }
 
         /// <summary>
-        /// Serachest the list of expanded workloads for workloads that are "simple" complete suggestions themselves and workloads that could be part of a more complex complete suggestion.
+        /// Search the list of expanded workloads for workloads that are "simple" complete suggestions themselves and workloads that could be part of a more complex complete suggestion.
         /// </summary>
         /// <param name="requestedPacks">The packs that a complete suggestion must include</param>
         /// <param name="expandedWorkloads">The full set of workloads, flattened to include the packs in the workloads they extend</param>
@@ -143,7 +138,7 @@ namespace Microsoft.NET.Sdk.WorkloadManifestReader
         {
             var filtered = new HashSet<WorkloadSuggestionCandidate>();
 
-            foreach(var suggestion in completeSuggestions)
+            foreach (var suggestion in completeSuggestions)
             {
                 bool isSupersetOfAny = false;
                 foreach (var other in completeSuggestions)
@@ -192,6 +187,7 @@ namespace Microsoft.NET.Sdk.WorkloadManifestReader
 
         internal static WorkloadSuggestion GetBestSuggestion(ICollection<WorkloadSuggestion> suggestions) => FindBest(
                 suggestions,
+                (x, y) => ContainsExperimental(y.Workloads) - ContainsExperimental(x.Workloads),
                 (x, y) => y.ExtraPacks - x.ExtraPacks,
                 (x, y) => y.Workloads.Count - x.Workloads.Count);
 
@@ -199,6 +195,8 @@ namespace Microsoft.NET.Sdk.WorkloadManifestReader
         /// Gets the suggestion with the lowest number of extra packs and lowest number of workload IDs.
         /// </summary>
         public WorkloadSuggestion GetBestSuggestion() => GetBestSuggestion(UnsortedSuggestions);
+
+        private static int ContainsExperimental(HashSet<WorkloadId> set) => set.Any(w => w.ToString().Contains("experimental")) ? 1 : 0;
 
         /// <summary>
         /// A partial or complete suggestion for workloads to install, annotated with which requested packs it does not satisfy

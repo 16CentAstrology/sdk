@@ -6,7 +6,6 @@
     <EnableStyleCopAnalyzer>true</EnableStyleCopAnalyzer>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
@@ -29,8 +28,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftJsonPackageVersion)" />
-    <PackageReference Include="Microsoft.TemplateEngine.Orchestrator.RunnableProjects" Version="$(MicrosoftTemplateEngineOrchestratorRunnableProjectsPackageVersion)" />
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="Microsoft.TemplateEngine.Orchestrator.RunnableProjects" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,14 +1,9 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using Microsoft.DotNet.Cli;
 using System.Diagnostics;
+using System.Reflection;
+using Microsoft.DotNet.Cli;
 using Microsoft.DotNet.Cli.Telemetry;
 using Microsoft.DotNet.Cli.Utils;
 
@@ -43,11 +38,12 @@ namespace Microsoft.DotNet.Tools.MSBuild
             return argsToForward;
         }
 
-        public MSBuildForwardingApp(IEnumerable<string> argsToForward, string msbuildPath = null)
+        public MSBuildForwardingApp(IEnumerable<string> argsToForward, string msbuildPath = null, bool includeLogo = false)
         {
             _forwardingAppWithoutLogging = new MSBuildForwardingAppWithoutLogging(
                 ConcatTelemetryLogger(argsToForward),
-                msbuildPath);
+                msbuildPath: msbuildPath,
+                includeLogo: includeLogo);
 
             // Add the performance log location to the environment of the target process.
             if (PerformanceLogManager.Instance != null && !string.IsNullOrEmpty(PerformanceLogManager.Instance.CurrentLogDirectory))
@@ -81,7 +77,7 @@ namespace Microsoft.DotNet.Tools.MSBuild
         internal string GetArgumentsToMSBuild()
         {
             var argumentsUnescaped = _forwardingAppWithoutLogging.GetAllArguments();
-            return Cli.Utils.ArgumentEscaper.EscapeAndConcatenateArgArrayForProcessStart(argumentsUnescaped);
+            return ArgumentEscaper.EscapeAndConcatenateArgArrayForProcessStart(argumentsUnescaped);
         }
 
         public virtual int Execute()

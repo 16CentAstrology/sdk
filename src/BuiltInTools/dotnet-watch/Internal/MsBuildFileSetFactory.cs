@@ -1,233 +1,185 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.DotNet.Cli;
-using Microsoft.DotNet.Watcher.Tools;
-using Microsoft.Extensions.Tools.Internal;
-using IReporter = Microsoft.Extensions.Tools.Internal.IReporter;
+using Microsoft.Build.Graph;
 
-namespace Microsoft.DotNet.Watcher.Internal
+namespace Microsoft.DotNet.Watch
 {
-    internal sealed class MsBuildFileSetFactory : IFileSetFactory
+    /// <summary>
+    /// Used to collect a set of files to watch.
+    ///
+    /// Invokes msbuild to evaluate <see cref="TargetName"/> on the root project, which traverses all project dependencies and collects
+    /// items that are to be watched. The target can be customized by defining CustomCollectWatchItems target. This is currently done by Razor SDK
+    /// to collect razor and cshtml files.
+    ///
+    /// Consider replacing with <see cref="Build.Graph.ProjectGraph"/> traversal (https://github.com/dotnet/sdk/issues/40214).
+    /// </summary>
+    internal class MSBuildFileSetFactory(
+        string rootProjectFile,
+        IEnumerable<string> buildArguments,
+        EnvironmentOptions environmentOptions,
+        IReporter reporter)
     {
         private const string TargetName = "GenerateWatchList";
         private const string WatchTargetsFileName = "DotNetWatch.targets";
 
-        private readonly IReporter _reporter;
-        private readonly DotNetWatchOptions _dotNetWatchOptions;
-        private readonly string _muxerPath;
-        private readonly string _projectFile;
-        private readonly OutputSink _outputSink;
-        private readonly ProcessRunner _processRunner;
-        private readonly bool _waitOnError;
-        private readonly IReadOnlyList<string> _buildFlags;
+        public string RootProjectFile => rootProjectFile;
 
-        public MsBuildFileSetFactory(
-            IReporter reporter,
-            DotNetWatchOptions dotNetWatchOptions,
-            string muxerPath,
-            string projectFile,
-            bool waitOnError,
-            bool trace)
-            : this(dotNetWatchOptions, reporter, muxerPath, projectFile, new OutputSink(), waitOnError, trace)
-        {
-        }
-
-        // output sink is for testing
-        internal MsBuildFileSetFactory(
-            DotNetWatchOptions dotNetWatchOptions,
-            IReporter reporter,
-            string muxerPath,
-            string projectFile,
-            OutputSink outputSink,
-            bool waitOnError,
-            bool trace)
-        {
-            Ensure.NotNull(reporter, nameof(reporter));
-            Ensure.NotNullOrEmpty(projectFile, nameof(projectFile));
-            Ensure.NotNull(outputSink, nameof(outputSink));
-
-            _reporter = reporter;
-            _dotNetWatchOptions = dotNetWatchOptions;
-            _muxerPath = muxerPath;
-            _projectFile = projectFile;
-            _outputSink = outputSink;
-            _processRunner = new ProcessRunner(reporter);
-            _buildFlags = InitializeArgs(FindTargetsFile(), trace);
-
-            _waitOnError = waitOnError;
-        }
-
-        public async Task<FileSet> CreateAsync(CancellationToken cancellationToken)
+        // Virtual for testing.
+        public virtual async ValueTask<EvaluationResult?> TryCreateAsync(bool? requireProjectGraph, CancellationToken cancellationToken)
         {
             var watchList = Path.GetTempFileName();
             try
             {
-                var projectDir = Path.GetDirectoryName(_projectFile);
+                var projectDir = Path.GetDirectoryName(rootProjectFile);
+                var arguments = GetMSBuildArguments(watchList);
+                var capturedOutput = new List<OutputLine>();
 
-                while (true)
+                var processSpec = new ProcessSpec
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    var capture = _outputSink.StartCapture();
-                    var arguments = new List<string>
+                    Executable = environmentOptions.MuxerPath,
+                    WorkingDirectory = projectDir,
+                    Arguments = arguments,
+                    OnOutput = line =>
                     {
-                        "msbuild",
-                        "/nologo",
-                        _projectFile,
-                        $"/p:_DotNetWatchListFile={watchList}",
-                    };
+                        lock (capturedOutput)
+                        {
+                            capturedOutput.Add(line);
+                        }
+                    }
+                };
 
-                    if (_dotNetWatchOptions.SuppressHandlingStaticContentFiles)
+                reporter.Verbose($"Running MSBuild target '{TargetName}' on '{rootProjectFile}'");
+
+                var exitCode = await ProcessRunner.RunAsync(processSpec, reporter, isUserApplication: false, launchResult: null, cancellationToken);
+
+                var success = exitCode == 0 && File.Exists(watchList);
+
+                if (!success)
+                {
+                    reporter.Error($"Error(s) finding watch items project file '{Path.GetFileName(rootProjectFile)}'.");
+                    reporter.Output($"MSBuild output from target '{TargetName}':");
+                }
+
+                BuildUtilities.ReportBuildOutput(reporter, capturedOutput, success, projectDisplay: null);
+                if (!success)
+                {
+                    return null;
+                }
+
+                using var watchFile = File.OpenRead(watchList);
+                var result = await JsonSerializer.DeserializeAsync<MSBuildFileSetResult>(watchFile, cancellationToken: cancellationToken);
+                Debug.Assert(result != null);
+
+                var fileItems = new Dictionary<string, FileItem>();
+                foreach (var (projectPath, projectItems) in result.Projects)
+                {
+                    foreach (var filePath in projectItems.Files)
                     {
-                        arguments.Add("/p:DotNetWatchContentFiles=false");
+                        AddFile(filePath, staticWebAssetPath: null);
                     }
 
-                    arguments.AddRange(_buildFlags);
-
-                    var processSpec = new ProcessSpec
+                    foreach (var staticFile in projectItems.StaticFiles)
                     {
-                        Executable = _muxerPath,
-                        WorkingDirectory = projectDir,
-                        Arguments = arguments,
-                        OutputCapture = capture
-                    };
+                        AddFile(staticFile.FilePath, staticFile.StaticWebAssetPath);
+                    }
 
-                    _reporter.Verbose($"Running MSBuild target '{TargetName}' on '{_projectFile}'");
-
-                    var exitCode = await _processRunner.RunAsync(processSpec, cancellationToken);
-
-                    if (exitCode == 0 && File.Exists(watchList))
+                    void AddFile(string filePath, string? staticWebAssetPath)
                     {
-                        using var watchFile = File.OpenRead(watchList);
-                        var result = await JsonSerializer.DeserializeAsync<MSBuildFileSetResult>(watchFile, cancellationToken: cancellationToken);
-
-                        var fileItems = new List<FileItem>();
-                        foreach (var project in result.Projects)
+                        if (!fileItems.TryGetValue(filePath, out var existingFile))
                         {
-                            var value = project.Value;
-                            var fileCount = value.Files.Count;
-
-                            for (var i = 0; i < fileCount; i++)
+                            fileItems.Add(filePath, new FileItem
                             {
-                                fileItems.Add(new FileItem
-                                {
-                                    FilePath = value.Files[i],
-                                    ProjectPath = project.Key,
-                                });
-                            }
-
-                            var staticItemsCount = value.StaticFiles.Count;
-                            for (var i = 0; i < staticItemsCount; i++)
-                            {
-                                var item = value.StaticFiles[i];
-                                fileItems.Add(new FileItem
-                                {
-                                    FilePath = item.FilePath,
-                                    ProjectPath = project.Key,
-                                    IsStaticFile = true,
-                                    StaticWebAssetPath = item.StaticWebAssetPath,
-                                });
-                            }
+                                FilePath = filePath,
+                                ContainingProjectPaths = [projectPath],
+                                StaticWebAssetPath = staticWebAssetPath,
+                            });
                         }
+                        else if (!existingFile.ContainingProjectPaths.Contains(projectPath))
+                        {
+                            // linked files might be included to multiple projects:
+                            existingFile.ContainingProjectPaths.Add(projectPath);
+                        }
+                    }
+                }
 
-
-                        _reporter.Verbose($"Watching {fileItems.Count} file(s) for changes");
+                reporter.Verbose($"Watching {fileItems.Count} file(s) for changes");
 #if DEBUG
 
-                        foreach (var file in fileItems)
-                        {
-                            _reporter.Verbose($"  -> {file.FilePath} {(file.IsStaticFile ? file.StaticWebAssetPath : null)}");
-                        }
+                foreach (var file in fileItems.Values)
+                {
+                    reporter.Verbose($"  -> {file.FilePath} {file.StaticWebAssetPath}");
+                }
 
-                        Debug.Assert(fileItems.All(f => Path.IsPathRooted(f.FilePath)), "All files should be rooted paths");
+                Debug.Assert(fileItems.Values.All(f => Path.IsPathRooted(f.FilePath)), "All files should be rooted paths");
 #endif
 
-                        var projectInfo = new ProjectInfo(
-                            _projectFile,
-                            result.IsNetCoreApp,
-                            EnvironmentVariableNames.TryParseTargetFrameworkVersion(result.TargetFrameworkVersion),
-                            result.RuntimeIdentifier,
-                            result.DefaultAppHostRuntimeIdentifier,
-                            result.RunCommand,
-                            result.RunArguments,
-                            result.RunWorkingDirectory);
-                        return new FileSet(projectInfo, fileItems);
-                    }
-
-                    _reporter.Error($"Error(s) finding watch items project file '{Path.GetFileName(_projectFile)}'");
-
-                    _reporter.Output($"MSBuild output from target '{TargetName}':");
-                    _reporter.Output(string.Empty);
-
-                    foreach (var line in capture.Lines)
-                    {
-                        _reporter.Output($"   {line}");
-                    }
-
-                    _reporter.Output(string.Empty);
-
-                    if (!_waitOnError)
+                // Load the project graph after the project has been restored:
+                ProjectGraph? projectGraph = null;
+                if (requireProjectGraph != null)
+                {
+                    projectGraph = TryLoadProjectGraph(requireProjectGraph.Value);
+                    if (projectGraph == null && requireProjectGraph == true)
                     {
                         return null;
                     }
-                    else
-                    {
-                        _reporter.Warn("Fix the error to continue or press Ctrl+C to exit.");
-
-                        var fileSet = new FileSet(null, new[] { new FileItem { FilePath = _projectFile } });
-
-                        using (var watcher = new FileSetWatcher(fileSet, _reporter))
-                        {
-                            await watcher.GetChangedFileAsync(cancellationToken);
-
-                            _reporter.Output($"File changed: {_projectFile}");
-                        }
-                    }
                 }
+
+                return new EvaluationResult(fileItems, projectGraph);
             }
             finally
             {
-                if (File.Exists(watchList))
-                {
-                    File.Delete(watchList);
-                }
+                File.Delete(watchList);
             }
         }
 
-        private IReadOnlyList<string> InitializeArgs(string watchTargetsFile, bool trace)
+        private IReadOnlyList<string> GetMSBuildArguments(string watchListFilePath)
         {
-            var args = new List<string>
+            var watchTargetsFile = FindTargetsFile();
+
+            var arguments = new List<string>
             {
+                "msbuild",
+                "/restore",
                 "/nologo",
-                "/v:n",
-                "/t:" + TargetName,
-                "/p:DotNetWatchBuild=true", // extensibility point for users
-                "/p:DesignTimeBuild=true", // don't do expensive things
-                "/p:CustomAfterMicrosoftCommonTargets=" + watchTargetsFile,
-                "/p:CustomAfterMicrosoftCommonCrossTargetingTargets=" + watchTargetsFile,
+                "/v:m",
+                rootProjectFile,
+                "/t:" + TargetName
             };
 
-            if (trace)
+#if !DEBUG
+            if (environmentOptions.TestFlags.HasFlag(TestFlags.RunningAsTest))
+#endif
             {
-                // enables capturing markers to know which projects have been visited
-                args.Add("/p:_DotNetWatchTraceOutput=true");
+                arguments.Add($"/bl:{Path.Combine(environmentOptions.TestOutput, "DotnetWatch.GenerateWatchList.binlog")}");
             }
 
-            return args;
+            arguments.AddRange(buildArguments);
+
+            // Set dotnet-watch reserved properties after the user specified propeties,
+            // so that the former take precedence.
+
+            if (environmentOptions.SuppressHandlingStaticContentFiles)
+            {
+                arguments.Add("/p:DotNetWatchContentFiles=false");
+            }
+
+            arguments.Add("/p:_DotNetWatchListFile=" + watchListFilePath);
+            arguments.Add("/p:DotNetWatchBuild=true"); // extensibility point for users
+            arguments.Add("/p:DesignTimeBuild=true"); // don't do expensive things
+            arguments.Add("/p:CustomAfterMicrosoftCommonTargets=" + watchTargetsFile);
+            arguments.Add("/p:CustomAfterMicrosoftCommonCrossTargetingTargets=" + watchTargetsFile);
+
+            return arguments;
         }
 
-        private string FindTargetsFile()
+        private static string FindTargetsFile()
         {
-            var assemblyDir = Path.GetDirectoryName(typeof(MsBuildFileSetFactory).Assembly.Location);
+            var assemblyDir = Path.GetDirectoryName(typeof(MSBuildFileSetFactory).Assembly.Location);
+            Debug.Assert(assemblyDir != null);
+
             var searchPaths = new[]
             {
                 Path.Combine(AppContext.BaseDirectory, "assets"),
@@ -237,12 +189,53 @@ namespace Microsoft.DotNet.Watcher.Internal
             };
 
             var targetPath = searchPaths.Select(p => Path.Combine(p, WatchTargetsFileName)).FirstOrDefault(File.Exists);
-            if (targetPath == null)
+            return targetPath ?? throw new FileNotFoundException("Fatal error: could not find DotNetWatch.targets");
+        }
+
+        // internal for testing
+        internal ProjectGraph? TryLoadProjectGraph(bool projectGraphRequired)
+        {
+            var globalOptions = new Dictionary<string, string>();
+
+            foreach (var (name, value) in CommandLineOptions.ParseBuildProperties(buildArguments))
             {
-                _reporter.Error("Fatal error: could not find DotNetWatch.targets");
-                return null;
+                globalOptions[name] = value;
             }
-            return targetPath;
+
+            try
+            {
+                return new ProjectGraph(rootProjectFile, globalOptions);
+            }
+            catch (Exception e)
+            {
+                reporter.Verbose("Failed to load project graph.");
+
+                if (e is AggregateException { InnerExceptions: var innerExceptions })
+                {
+                    foreach (var inner in innerExceptions)
+                    {
+                        Report(inner);
+                    }
+                }
+                else
+                {
+                    Report(e);
+                }
+
+                void Report(Exception e)
+                {
+                    if (projectGraphRequired)
+                    {
+                        reporter.Error(e.Message);
+                    }
+                    else
+                    {
+                        reporter.Warn(e.Message);
+                    }
+                }
+            }
+
+            return null;
         }
     }
 }

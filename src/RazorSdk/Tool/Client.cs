@@ -1,15 +1,13 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.IO;
+#nullable disable
+
 using System.IO.Pipes;
 #if NETFRAMEWORK
 using System.Security.AccessControl;
 using System.Security.Principal;
 #endif
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Microsoft.NET.Sdk.Razor.Tool
 {
@@ -157,7 +155,7 @@ namespace Microsoft.NET.Sdk.Razor.Tool
 
             public override string Identifier { get; }
 
-            public async override Task WaitForDisconnectAsync(CancellationToken cancellationToken)
+            public override async Task WaitForDisconnectAsync(CancellationToken cancellationToken)
             {
                 if (!(Stream is PipeStream pipeStream))
                 {
@@ -173,7 +171,9 @@ namespace Microsoft.NET.Sdk.Razor.Tool
                     try
                     {
                         ServerLogger.Log($"Before poking pipe {Identifier}.");
+#pragma warning disable CA2022 // Avoid inexact read
                         await Stream.ReadAsync(Array.Empty<byte>(), 0, 0, cancellationToken);
+#pragma warning restore CA2022
                         ServerLogger.Log($"After poking pipe {Identifier}.");
                     }
                     catch (OperationCanceledException)

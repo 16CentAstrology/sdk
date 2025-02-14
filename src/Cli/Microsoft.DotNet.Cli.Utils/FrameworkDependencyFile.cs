@@ -1,11 +1,6 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 using Microsoft.Extensions.DependencyModel;
 
 namespace Microsoft.DotNet.Cli.Utils
@@ -16,7 +11,7 @@ namespace Microsoft.DotNet.Cli.Utils
     /// </summary>
     internal class FrameworkDependencyFile
     {
-        private readonly string _depsFilePath;
+        private readonly string? _depsFilePath;
         private readonly Lazy<DependencyContext> _dependencyContext;
 
         private DependencyContext DependencyContext => _dependencyContext.Value;
@@ -32,7 +27,7 @@ namespace Microsoft.DotNet.Cli.Utils
             return DependencyContext.RuntimeGraph.Any(g => g.Runtime == runtimeIdentifier);
         }
 
-        public string GetNetStandardLibraryVersion()
+        public string? GetNetStandardLibraryVersion()
         {
             return DependencyContext
                 .RuntimeLibraries
@@ -44,7 +39,7 @@ namespace Microsoft.DotNet.Cli.Utils
         public bool TryGetMostFitRuntimeIdentifier(
             string alternativeCurrentRuntimeIdentifier,
             string[] candidateRuntimeIdentifiers,
-            out string mostFitRuntimeIdentifier)
+            out string? mostFitRuntimeIdentifier)
         {
             return TryGetMostFitRuntimeIdentifier(
                 RuntimeInformation.RuntimeIdentifier,
@@ -60,7 +55,7 @@ namespace Microsoft.DotNet.Cli.Utils
             string alternativeCurrentRuntimeIdentifier,
             IReadOnlyList<RuntimeFallbacks> runtimeGraph,
             string[] candidateRuntimeIdentifiers,
-            out string mostFitRuntimeIdentifier)
+            out string? mostFitRuntimeIdentifier)
         {
             mostFitRuntimeIdentifier = null;
             RuntimeFallbacks[] runtimeFallbacksCandidates;
@@ -92,10 +87,9 @@ namespace Microsoft.DotNet.Cli.Utils
 
             RuntimeFallbacks runtimeFallbacks = runtimeFallbacksCandidates[0];
 
-            var runtimeFallbacksIncludesRuntime = new List<string>();
+            var runtimeFallbacksIncludesRuntime = new List<string?>();
             runtimeFallbacksIncludesRuntime.Add(runtimeFallbacks.Runtime);
             runtimeFallbacksIncludesRuntime.AddRange(runtimeFallbacks.Fallbacks);
-
 
             var candidateMap = candidateRuntimeIdentifiers
                 .Distinct(comparer: StringComparer.OrdinalIgnoreCase)
@@ -103,10 +97,9 @@ namespace Microsoft.DotNet.Cli.Utils
 
             foreach (var fallback in runtimeFallbacksIncludesRuntime)
             {
-                if (candidateMap.TryGetValue(fallback, out string match))
+                if (fallback is not null && candidateMap.TryGetValue(fallback, out string? match))
                 {
                     mostFitRuntimeIdentifier = match;
-
                     return true;
                 }
             }
@@ -116,8 +109,8 @@ namespace Microsoft.DotNet.Cli.Utils
 
         private DependencyContext CreateDependencyContext()
         {
-            using (Stream depsFileStream = File.OpenRead(_depsFilePath))
-            using (DependencyContextJsonReader reader = new DependencyContextJsonReader())
+            using (Stream depsFileStream = File.OpenRead(_depsFilePath ?? string.Empty))
+            using (DependencyContextJsonReader reader = new())
             {
                 return reader.Read(depsFileStream);
             }

@@ -19,3 +19,6 @@ Other documentation for workloads is in this repo:
 - [Workload description localization](https://github.com/dotnet/sdk/pull/21189)
 - [Grouping multiple packs into one MSI](https://github.com/dotnet/sdk/issues/21741)
 - [Handling workload assets across major .NET versions](cross-version-workloads.md)
+- [Workload Clean Command](workload-clean.md)
+- [Workload MSI Installation Tests](/test/dotnet-MsiInstallation.Tests/README.md)
+- [Diagnosing workloads issues](workload-diagnosis.md)

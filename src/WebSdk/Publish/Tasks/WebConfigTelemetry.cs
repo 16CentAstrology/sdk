@@ -1,8 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using System.Text.RegularExpressions;
-using System.Xml.Linq;
 using Microsoft.DotNet.Cli;
 
 namespace Microsoft.NET.Sdk.Publish.Tasks
@@ -11,7 +10,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
     {
         // An example of a project line looks like this:
         //  Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClassLibrary1", "ClassLibrary1\ClassLibrary1.csproj", "{05A5AD00-71B5-4612-AF2F-9EA9121C4111}"
-        private static readonly Lazy<Regex> s_crackProjectLine = new Lazy<Regex>(
+        private static readonly Lazy<Regex> s_crackProjectLine = new(
             () => new Regex
                 (
                 @"^" // Beginning of line
@@ -27,7 +26,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
                 )
             );
 
-        public static XDocument AddTelemetry(XDocument webConfig, string projectGuid, bool ignoreProjectGuid, string solutionFileFullPath, string projectFileFullPath)
+        public static XDocument? AddTelemetry(XDocument? webConfig, string? projectGuid, bool ignoreProjectGuid, string? solutionFileFullPath, string? projectFileFullPath)
         {
             try
             {
@@ -42,13 +41,13 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
             }
             catch
             {
-                // Telemtry
+                // Telemetry
             }
 
             return webConfig;
         }
 
-        public static string GetProjectGuidFromSolutionFile(string solutionFileFullPath, string projectFileFullPath)
+        public static string? GetProjectGuidFromSolutionFile(string? solutionFileFullPath, string? projectFileFullPath)
         {
             try
             {
@@ -58,7 +57,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
                 }
 
                 int parentLevelsToSearch = 5;
-                string solutionDirectory = Path.GetDirectoryName(projectFileFullPath);
+                string? solutionDirectory = Path.GetDirectoryName(projectFileFullPath);
 
                 while (parentLevelsToSearch-- > 0)
                 {
@@ -67,10 +66,13 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
                         return null;
                     }
 
-                    IEnumerable<string> solutionFiles = Directory.EnumerateFiles(solutionDirectory, "*.sln", SearchOption.TopDirectoryOnly);
+                    IEnumerable<string> solutionFiles = [
+                        ..Directory.EnumerateFiles(solutionDirectory, "*.sln", SearchOption.TopDirectoryOnly),
+                        ..Directory.EnumerateFiles(solutionDirectory, "*.slnx", SearchOption.TopDirectoryOnly)
+                    ];
                     foreach (string solutionFile in solutionFiles)
                     {
-                        string projectGuid = GetProjectGuid(solutionFile, projectFileFullPath);
+                        string? projectGuid = GetProjectGuid(solutionFile, projectFileFullPath);
                         if (!string.IsNullOrEmpty(projectGuid))
                         {
                             return projectGuid;
@@ -88,7 +90,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
             return null;
         }
 
-        private static string GetProjectGuid(string solutionFileFullPath, string projectFileFullPath)
+        private static string? GetProjectGuid(string? solutionFileFullPath, string? projectFileFullPath)
         {
             if (!string.IsNullOrEmpty(solutionFileFullPath) && File.Exists(solutionFileFullPath))
             {
@@ -99,12 +101,16 @@ namespace Microsoft.NET.Sdk.Publish.Tasks
                     if (match.Success)
                     {
                         string projectRelativePath = match.Groups["RELATIVEPATH"].Value.Trim();
-                        string projectFullPathConstructed = Path.Combine(Path.GetDirectoryName(solutionFileFullPath), projectRelativePath);
-                        projectFullPathConstructed = Path.GetFullPath((new Uri(projectFullPathConstructed)).LocalPath);
-                        if (string.Equals(projectFileFullPath, projectFullPathConstructed, StringComparison.OrdinalIgnoreCase))
+                        string? solutionFileDirectory = Path.GetDirectoryName(solutionFileFullPath);
+                        if (solutionFileDirectory is not null)
                         {
-                            string projectGuid = match.Groups["PROJECTGUID"].Value.Trim();
-                            return projectGuid;
+                            string projectFullPathConstructed = Path.Combine(solutionFileDirectory, projectRelativePath);
+                            projectFullPathConstructed = Path.GetFullPath((new Uri(projectFullPathConstructed)).LocalPath);
+                            if (string.Equals(projectFileFullPath, projectFullPathConstructed, StringComparison.OrdinalIgnoreCase))
+                            {
+                                string projectGuid = match.Groups["PROJECTGUID"].Value.Trim();
+                                return projectGuid;
+                            }
                         }
                     }
                 }

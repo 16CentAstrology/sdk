@@ -1,8 +1,6 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,10 +44,11 @@ namespace Microsoft.AspNetCore.Watch.BrowserRefresh
                         app.Map(ApplicationPaths.BlazorHotReloadMiddleware, static app => app.UseMiddleware<BlazorWasmHotReloadMiddleware>());
 
                         app.Map(ApplicationPaths.BrowserRefreshJS,
-                            static app => app.UseMiddleware<BrowserScriptMiddleware>(BrowserScriptMiddleware.GetBrowserRefreshJS()));
+                            static app => app.UseMiddleware<BrowserScriptMiddleware>(ApplicationPaths.BrowserRefreshJS, BrowserScriptMiddleware.GetBrowserRefreshJS()));
 
+                        // backwards compat only:
                         app.Map(ApplicationPaths.BlazorHotReloadJS,
-                            static app => app.UseMiddleware<BrowserScriptMiddleware>(BrowserScriptMiddleware.GetBlazorHotReloadJS()));
+                            static app => app.UseMiddleware<BrowserScriptMiddleware>(ApplicationPaths.BlazorHotReloadJS, BrowserScriptMiddleware.GetBlazorHotReloadJS()));
                     });
 
                 app.UseMiddleware<BrowserRefreshMiddleware>();

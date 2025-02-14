@@ -1,20 +1,18 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-
-namespace Microsoft.DotNet.Watcher.Internal
+namespace Microsoft.DotNet.Watch
 {
     internal static class FileWatcherFactory
     {
-        public static IFileSystemWatcher CreateWatcher(string watchedDirectory)
-            => CreateWatcher(watchedDirectory, CommandLineOptions.IsPollingEnabled);
+        public static IDirectoryWatcher CreateWatcher(string watchedDirectory)
+            => CreateWatcher(watchedDirectory, EnvironmentVariables.IsPollingEnabled);
 
-        public static IFileSystemWatcher CreateWatcher(string watchedDirectory, bool usePollingWatcher)
+        public static IDirectoryWatcher CreateWatcher(string watchedDirectory, bool usePollingWatcher)
         {
             return usePollingWatcher ?
-                new PollingFileWatcher(watchedDirectory) :
-                new DotnetFileWatcher(watchedDirectory) as IFileSystemWatcher;
+                new PollingDirectoryWatcher(watchedDirectory) :
+                new EventBasedDirectoryWatcher(watchedDirectory);
         }
     }
 }

@@ -1,4 +1,7 @@
-﻿///--------------------------------------------------------------------------------------------
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+///--------------------------------------------------------------------------------------------
 /// ParametersFile.cs
 ///
 /// Implements using through MSDeploy's API
@@ -6,49 +9,48 @@
 ///
 /// Copyright(c) 2006 Microsoft Corporation
 ///--------------------------------------------------------------------------------------------
+
+using Framework = Microsoft.Build.Framework;
+using Utilities = Microsoft.Build.Utilities;
+using Xml = System.Xml;
+
 namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
 {
-    using System.IO;
-    using Framework = Microsoft.Build.Framework;
-    using Utilities = Microsoft.Build.Utilities;
-    using Xml = System.Xml;
-
-    public class CreateManifestFile : Utilities.Task
+    public class CreateManifestFile : Task
     {
-        private Framework.ITaskItem[] m_manifests = null;
-        private string m_manifestFile = null;
+        private Framework.ITaskItem[]? m_manifests = null;
+        private string? m_manifestFile = null;
         private bool m_generateFileEvenIfEmpty = false;
 
         [Framework.Required]
-        public Framework.ITaskItem[] Manifests
+        public Framework.ITaskItem[]? Manifests
         {
             get { return m_manifests; }
             set { m_manifests = value; }
         }
 
         [Framework.Required]
-        public string ManifestFile
+        public string? ManifestFile
         {
             get { return m_manifestFile; }
             set { m_manifestFile = value; }
         }
-
 
         public bool GenerateFileEvenIfEmpty
         {
             get { return m_generateFileEvenIfEmpty; }
             set { m_generateFileEvenIfEmpty = value; }
         }
-        
+
         /// <summary>
         /// utility function to write the simple setParameter.xml file
         /// </summary>
         /// <param name="loggingHelper"></param>
         /// <param name="parameters"></param>
         /// <param name="outputFileName"></param>
-        private static void WriteManifestsToFile(Utilities.TaskLoggingHelper loggingHelper, Framework.ITaskItem[] items, string outputFileName)
+        private static void WriteManifestsToFile(Utilities.TaskLoggingHelper loggingHelper, Framework.ITaskItem[]? items, string outputFileName)
         {
-            Xml.XmlDocument document = new System.Xml.XmlDocument();
+            Xml.XmlDocument document = new();
             Xml.XmlElement manifestElement = document.CreateElement("sitemanifest");
             document.AppendChild(manifestElement);
             if (items != null)
@@ -78,7 +80,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
 
             // Save the UTF8 and Indented 
-            Utility.SaveDocument(document, outputFileName, System.Text.Encoding.UTF8);
+            Utility.SaveDocument(document, outputFileName, Encoding.UTF8);
         }
 
         /// <summary>
@@ -99,23 +101,23 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             {
                 try
                 {
-                    if (!string.IsNullOrEmpty(ManifestFile))
+                    if (ManifestFile is not null && ManifestFile.Length != 0)
                     {
                         if (!File.Exists(ManifestFile))
                         {
-                            File.Create(ManifestFile);
+                            File.Create(ManifestFile).Close();
                         }
                         WriteManifestsToFile(Log, m_manifests, ManifestFile);
                     }
                 }
 #if NET472
-                catch (System.Xml.XmlException ex)
+                catch (Xml.XmlException ex)
                 {
-                    System.Uri sourceUri = new System.Uri(ex.SourceUri);
+                    Uri sourceUri = new(ex.SourceUri);
                     succeeded = false;
                 }
 #endif
-                catch (System.Exception)
+                catch (Exception)
                 {
                     succeeded = false;
                 }
@@ -129,7 +131,4 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             return succeeded;
         }
     }
-
-    
-
 }

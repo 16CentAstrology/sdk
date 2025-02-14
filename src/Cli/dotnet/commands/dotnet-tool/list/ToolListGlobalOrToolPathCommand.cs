@@ -1,12 +1,7 @@
-// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
 using System.CommandLine;
-using System.CommandLine.Parsing;
-using System.IO;
-using System.Linq;
 using Microsoft.DotNet.Cli;
 using Microsoft.DotNet.Cli.Utils;
 using Microsoft.DotNet.ToolPackage;
@@ -59,20 +54,18 @@ namespace Microsoft.DotNet.Tools.Tool.List
                 toolPath = new DirectoryPath(toolPathOption);
             }
 
-            var table = new PrintableTable<IToolPackage>();
-
-            table.AddColumn(
-                LocalizableStrings.PackageIdColumn,
-                p => p.Id.ToString());
-            table.AddColumn(
-                LocalizableStrings.VersionColumn,
-                p => p.Version.ToNormalizedString());
-            table.AddColumn(
-                LocalizableStrings.CommandsColumn,
-                p => string.Join(CommandDelimiter, p.Commands.Select(c => c.Name)));
-
             var packageEnumerable = GetPackages(toolPath, packageId);
-            table.PrintRows(packageEnumerable, l => _reporter.WriteLine(l));
+
+            var formatValue = _parseResult.GetValue(ToolListCommandParser.ToolListFormatOption);
+            if (formatValue is ToolListOutputFormat.json)
+            {
+                PrintJson(packageEnumerable);
+            }
+            else
+            {
+                PrintTable(packageEnumerable);
+            }
+
             if (packageId.HasValue && !packageEnumerable.Any())
             {
                 // return 1 if target package was not found
@@ -81,10 +74,10 @@ namespace Microsoft.DotNet.Tools.Tool.List
             return 0;
         }
 
-        private IEnumerable<IToolPackage> GetPackages(DirectoryPath? toolPath, PackageId? packageId)
+        public IEnumerable<IToolPackage> GetPackages(DirectoryPath? toolPath, PackageId? packageId)
         {
             return _createToolPackageStore(toolPath).EnumeratePackages()
-                .Where((p) => PackageHasCommands(p) && PackageIdMatches(p, packageId))
+                .Where((p) => PackageHasCommand(p) && PackageIdMatches(p, packageId))
                 .OrderBy(p => p.Id)
                 .ToArray();
         }
@@ -94,13 +87,13 @@ namespace Microsoft.DotNet.Tools.Tool.List
             return !packageId.HasValue || package.Id.Equals(packageId);
         }
 
-        private bool PackageHasCommands(IToolPackage package)
+        private bool PackageHasCommand(IToolPackage package)
         {
             try
             {
-                // Attempt to read the commands collection
+                // Attempt to read the command
                 // If it fails, print a warning and treat as no commands
-                return package.Commands.Count >= 0;
+                return package.Command is not null;
             }
             catch (Exception ex) when (ex is ToolConfigurationException)
             {
@@ -111,6 +104,38 @@ namespace Microsoft.DotNet.Tools.Tool.List
                         ex.Message).Yellow());
                 return false;
             }
+        }
+
+        private void PrintTable(IEnumerable<IToolPackage> packageEnumerable)
+        {
+            var table = new PrintableTable<IToolPackage>();
+
+            table.AddColumn(
+                LocalizableStrings.PackageIdColumn,
+                p => p.Id.ToString());
+            table.AddColumn(
+                LocalizableStrings.VersionColumn,
+                p => p.Version.ToNormalizedString());
+            table.AddColumn(
+                LocalizableStrings.CommandsColumn,
+                p => p.Command.Name.ToString());
+
+            table.PrintRows(packageEnumerable, l => _reporter.WriteLine(l));
+        }
+
+        private void PrintJson(IEnumerable<IToolPackage> packageEnumerable)
+        {
+            var jsonData = new VersionedDataContract<ToolListJsonContract[]>()
+            {
+                Data = packageEnumerable.Select(p => new ToolListJsonContract
+                {
+                    PackageId = p.Id.ToString(),
+                    Version = p.Version.ToNormalizedString(),
+                    Commands = [p.Command.Name.Value]
+                }).ToArray()
+            };
+            var jsonText = System.Text.Json.JsonSerializer.Serialize(jsonData, JsonHelper.NoEscapeSerializerOptions);
+            _reporter.WriteLine(jsonText);
         }
     }
 }

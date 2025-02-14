@@ -1,28 +1,25 @@
-﻿///--------------------------------------------------------------------------------------------
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+///--------------------------------------------------------------------------------------------
 /// CommonUtility.cs
 ///
 /// Common utility function
 ///
 /// Copyright(c) 2006 Microsoft Corporation
 ///--------------------------------------------------------------------------------------------
+
+using System.Diagnostics;
+using System.Reflection;
+using System.Xml;
+using Microsoft.NET.Sdk.Publish.Tasks.Properties;
+using CultureInfo = System.Globalization.CultureInfo;
+using Framework = Microsoft.Build.Framework;
+using RegularExpressions = System.Text.RegularExpressions;
+using Utilities = Microsoft.Build.Utilities;
+
 namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
 {
-    using Text = System.Text;
-    using CultureInfo = System.Globalization.CultureInfo;
-    using IO = System.IO;
-    using RegularExpressions = System.Text.RegularExpressions;
-    using Win32 = Microsoft.Win32;
-    using Xml = System.Xml;
-    using Framework = Microsoft.Build.Framework;
-    using Utilities = Microsoft.Build.Utilities;
-    using System.Diagnostics;
-    using Generic = System.Collections.Generic;
-    using System.Linq;
-    using System.Reflection;
-    using Microsoft.NET.Sdk.Publish.Tasks.Properties;
-    using System.IO;
-    using System.Xml;
-
     internal enum PipelineMetadata
     {
         //<ItemDefinitionGroup>
@@ -38,8 +35,6 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         FromTarget,
         Category,
     };
-
-
 
     internal enum ReplaceRuleMetadata
     {
@@ -61,20 +56,17 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         Replace,
     };
 
-
-
-
     internal enum SkipRuleMetadata
     {
-      //<ItemDefinitionGroup>
-      //  <MsDeploySkipRules>
-      //    <SkipAction></SkipAction>
-      //    <ObjectName></ObjectName>
-      //    <AbsolutePath></AbsolutePath>
-      //    <XPath></XPath>
-      //    <KeyAttribute></KeyAttribute>
-      //  </MsDeploySkipRules>
-      //</ItemDefinitionGroup>
+        //<ItemDefinitionGroup>
+        //  <MsDeploySkipRules>
+        //    <SkipAction></SkipAction>
+        //    <ObjectName></ObjectName>
+        //    <AbsolutePath></AbsolutePath>
+        //    <XPath></XPath>
+        //    <KeyAttribute></KeyAttribute>
+        //  </MsDeploySkipRules>
+        //</ItemDefinitionGroup>
         SkipAction,
         ObjectName,
         AbsolutePath,
@@ -100,7 +92,6 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         DefaultValue,
         Tags,
     };
-
 
     internal enum ExistingDeclareParameterMetadata
     {
@@ -133,17 +124,17 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         Value,
         IsDeclared,
         SourcePath,
-        SourcePath_RegExExcaped,
+        SourcePath_RegExEscaped,
         DestinationGroup
     }
 
-
-    internal enum ExistingParameterValiationMetadata
+    internal enum ExistingParameterValidationMetadata
     {
         Element,
         Kind,
         ValidationString,
     }
+
     internal enum SyncParameterMetadata
     {
         //<ItemDefinitionGroup>
@@ -179,9 +170,6 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         Value,
     };
 
-
-    
-
     internal class ParameterInfo
     {
         public string Name;
@@ -193,16 +181,15 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         }
     }
 
-    internal class ProviderOption: ParameterInfo
+    internal class ProviderOption : ParameterInfo
     {
         public string FactoryName;
-        public ProviderOption(string factorName, string parameterName, string parameterStringValue):
+        public ProviderOption(string factorName, string parameterName, string parameterStringValue) :
             base(parameterName, parameterStringValue)
         {
             FactoryName = factorName;
         }
     }
-
 
     internal class ParameterInfoWithEntry : ParameterInfo
     {
@@ -232,30 +219,26 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             Tags = tags;
             Element = element;
             ValidationString = validationString;
-
         }
     }
 
-
     internal static class Utility
     {
-        static System.Collections.Generic.Dictionary<string, string> m_wellKnownNamesDict = null;
-        static System.Collections.Generic.Dictionary<string, string> m_wellKnownNamesMsdeployDict = null;
-
+        static Dictionary<string, string?>? s_wellKnownNamesDict = null;
+        static Dictionary<string, string?>? s_wellKnownNamesMsdeployDict = null;
 
         internal enum IISExpressMetadata
         {
             WebServerDirectory, WebServerManifest, WebServerAppHostConfigDirectory
         }
-        
+
         public static bool IsInternalMsdeployWellKnownItemMetadata(string name)
         {
-            IISExpressMetadata iisExpressMetadata;
-            if (System.Enum.TryParse<IISExpressMetadata>(name, out iisExpressMetadata))
+            if (Enum.TryParse<IISExpressMetadata>(name, out _))
             {
                 return true;
             }
-            if (string.Compare(name, "Path", System.StringComparison.OrdinalIgnoreCase) == 0)
+            if (string.Compare(name, "Path", StringComparison.OrdinalIgnoreCase) == 0)
             {
                 return true;
             }
@@ -265,9 +248,9 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         // Utility function to filter out known MSBuild Metatdata
         public static bool IsMSBuildWellKnownItemMetadata(string name)
         {
-            if (m_wellKnownNamesDict == null)
+            if (s_wellKnownNamesDict == null)
             {
-                string[] wellKnownNames = 
+                string[] wellKnownNames =
                 {
                     "FullPath",
                     "RootDir",
@@ -288,69 +271,69 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                     "DefiningProjectFullPath",
                     "DefiningProjectName"
                 };
-                m_wellKnownNamesDict = new System.Collections.Generic.Dictionary<string, string>(wellKnownNames.GetLength(0), System.StringComparer.OrdinalIgnoreCase);
-                
+                s_wellKnownNamesDict = new Dictionary<string, string?>(wellKnownNames.GetLength(0), StringComparer.OrdinalIgnoreCase);
+
                 foreach (string wellKnownName in wellKnownNames)
                 {
-                    m_wellKnownNamesDict.Add(wellKnownName, null);
+                    s_wellKnownNamesDict.Add(wellKnownName, null);
                 }
             }
-            return m_wellKnownNamesDict.ContainsKey(name);
+            return s_wellKnownNamesDict.ContainsKey(name);
         }
 
         public static bool IsMsDeployWellKnownLocationInfo(string name)
         {
-            if (m_wellKnownNamesMsdeployDict == null)
+            if (s_wellKnownNamesMsdeployDict == null)
             {
-                string[] wellKnownNames = 
+                string[] wellKnownNames =
                 {
-                   "computerName", 
-                   "wmsvc", 
-                   "userName", 
-                   "password", 
-                   "includeAcls", 
-                   "encryptPassword", 
-                   "authType", 
+                   "computerName",
+                   "wmsvc",
+                   "userName",
+                   "password",
+                   "includeAcls",
+                   "encryptPassword",
+                   "authType",
                    "prefetchPayload",
                 };
-                m_wellKnownNamesMsdeployDict = new System.Collections.Generic.Dictionary<string, string>(wellKnownNames.GetLength(0), System.StringComparer.OrdinalIgnoreCase);
+                s_wellKnownNamesMsdeployDict = new Dictionary<string, string?>(wellKnownNames.GetLength(0), StringComparer.OrdinalIgnoreCase);
 
                 foreach (string wellKnownName in wellKnownNames)
                 {
-                    m_wellKnownNamesMsdeployDict.Add(wellKnownName, null);
+                    s_wellKnownNamesMsdeployDict.Add(wellKnownName, null);
                 }
             }
-            return m_wellKnownNamesMsdeployDict.ContainsKey(name);
+            return s_wellKnownNamesMsdeployDict.ContainsKey(name);
         }
 
-        static  Text.StringBuilder m_stringBuilder = null;
+        static StringBuilder? s_stringBuilder = null;
 
         /// <summary>
-        /// commong utility for Clean share common builder
+        /// common utility for Clean share common builder
         /// </summary>
-        private  static Text.StringBuilder StringBuilder
+        private static StringBuilder StringBuilder
         {
             get
             {
-                if (m_stringBuilder == null)
+                if (s_stringBuilder == null)
                 {
-                    m_stringBuilder = new System.Text.StringBuilder(1024);
+                    s_stringBuilder = new StringBuilder(1024);
                 }
-                return m_stringBuilder;
+                return s_stringBuilder;
             }
         }
 
         /// <summary>
         /// This is the simple share clean build. Since this is an share instance
-        /// make sure you don't call this on complex operation or it will be zero out unexpectly
-        /// Use this you need to be simple function which doesn't call any functiont that use this property
+        /// make sure you don't call this on complex operation or it will be zero out unexpectedly
+        /// Use this you need to be simple function which doesn't call any function that use this property
         /// Sde dev10 bug 699893
         /// </summary>
-        public static Text.StringBuilder CleanStringBuilder
+        public static StringBuilder CleanStringBuilder
         {
             get
             {
-                Text.StringBuilder sb = StringBuilder;
+                StringBuilder sb = StringBuilder;
                 sb.Remove(0, sb.Length);
                 return sb;
             }
@@ -368,7 +351,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             {
                 if (registryKey != null)
                 {
-                    iisMajorVersion = System.Convert.ToUInt16(registryKey.GetValue(@"MajorVersion", 0), CultureInfo.InvariantCulture);
+                    iisMajorVersion = Convert.ToUInt16(registryKey.GetValue(@"MajorVersion", 0), CultureInfo.InvariantCulture);
                 }
             }
             return iisMajorVersion;
@@ -399,21 +382,28 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         /// Return true if MSDeploy is installed
         /// </summary>
         private static bool _isMSDeployInstalled = false;
-        private static string _strErrorMessage = null;
-        public static bool IsMSDeployInstalled {
-            get {
-                if (_isMSDeployInstalled) {
+        private static string? _strErrorMessage = null;
+        public static bool IsMSDeployInstalled
+        {
+            get
+            {
+                if (_isMSDeployInstalled)
+                {
                     return true;
                 }
-                else if (_strErrorMessage != null) {
+                else if (_strErrorMessage != null)
+                {
                     return false;
                 }
-                else {
-                    try {
+                else
+                {
+                    try
+                    {
                         _isMSDeployInstalled = CheckMSDeploymentVersion();
                     }
-                    catch (System.IO.FileNotFoundException ex) {
-                        _strErrorMessage = string.Format(System.Globalization.CultureInfo.CurrentCulture,Resources.VSMSDEPLOY_MSDEPLOYLOADFAIL,
+                    catch (FileNotFoundException ex)
+                    {
+                        _strErrorMessage = string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_MSDEPLOYLOADFAIL,
                             Resources.VSMSDEPLOY_MSDEPLOY32bit,
                             Resources.VSMSDEPLOY_MSDEPLOY64bit,
                             ex.Message);
@@ -429,41 +419,45 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         /// <summary>
         /// Return true if MSDeploy is installed, and report an error to task.Log if it's not
         /// </summary>
-        public static bool CheckMSDeploymentVersion( Utilities.TaskLoggingHelper log , out string errorMessage) {
+        public static bool CheckMSDeploymentVersion(Utilities.TaskLoggingHelper log, out string? errorMessage)
+        {
             errorMessage = null;
-            if (!IsMSDeployInstalled) {
+            if (!IsMSDeployInstalled)
+            {
                 errorMessage = _strErrorMessage;
                 log.LogError(_strErrorMessage);
                 return false;
             }
-            else {
+            else
+            {
                 return true;
             }
         }
-
 
         /// <summary>
         /// Utility function to save the given XML document in UTF8 and indented
         /// </summary>
         /// <param name="document"></param>
-        public static void SaveDocument(Xml.XmlDocument document, string outputFileName, System.Text.Encoding encode)
+        public static void SaveDocument(XmlDocument document, string outputFileName, Encoding encode)
         {
 #if NET472
-            Xml.XmlTextWriter textWriter = new Xml.XmlTextWriter(outputFileName, encode);
-            textWriter.Formatting = System.Xml.Formatting.Indented;
+            XmlTextWriter textWriter = new(outputFileName, encode)
+            {
+                Formatting = Formatting.Indented
+            };
             document.Save(textWriter);
             textWriter.Close();
 #else
-            using (FileStream fs = new FileStream(outputFileName, FileMode.OpenOrCreate))
+            using (FileStream fs = new(outputFileName, FileMode.OpenOrCreate))
             {
-                using (StreamWriter writer = new StreamWriter(fs, encode))
+                using (StreamWriter writer = new(fs, encode))
                 {
                     XmlDeclaration xmldecl;
                     xmldecl = document.CreateXmlDeclaration("1.0", null, null);
                     xmldecl.Encoding = "utf-8";
 
                     // Add the new node to the document.
-                    XmlElement root = document.DocumentElement;
+                    XmlElement? root = document.DocumentElement;
                     document.InsertBefore(xmldecl, root);
 
                     document.Save(writer);
@@ -475,21 +469,22 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         /// <summary>
         /// Utility to check the MinimumVersion of Msdeploy
         /// </summary>
-        static string s_strMinimumVersion;
+        static string? s_strMinimumVersion;
 
         /// <summary>
         /// Helper function to determine installed MSDeploy version
         /// </summary>
-        private static bool CheckMSDeploymentVersion() {
+        private static bool CheckMSDeploymentVersion()
+        {
             // Find the MinimumVersionRequirement
-            System.Version currentMinVersion;
+            Version currentMinVersion;
             if (!string.IsNullOrEmpty(s_strMinimumVersion))
             {
-                currentMinVersion = new System.Version(s_strMinimumVersion);
+                currentMinVersion = new Version(s_strMinimumVersion);
             }
             else
             {
-                currentMinVersion = new System.Version(7, 1, 614); // current drop
+                currentMinVersion = new Version(7, 1, 614); // current drop
                 {
                     string strMinimumVersion = string.Empty;
 #if NET472
@@ -513,21 +508,21 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
 #endif
                     if (!string.IsNullOrEmpty(s_strMinimumVersion))
                     {
-                        currentMinVersion = new System.Version(strMinimumVersion);
+                        currentMinVersion = new Version(strMinimumVersion);
                     }
                     else
                     {
-                        s_strMinimumVersion = currentMinVersion.ToString();  
+                        s_strMinimumVersion = currentMinVersion.ToString();
                     }
                 }
             }
 
-            System.Diagnostics.Debug.Assert(MSWebDeploymentAssembly.DynamicAssembly != null && MSWebDeploymentAssembly.DynamicAssembly.Assembly != null);
+            Debug.Assert(MSWebDeploymentAssembly.DynamicAssembly != null && MSWebDeploymentAssembly.DynamicAssembly.Assembly != null);
             if (MSWebDeploymentAssembly.DynamicAssembly != null && MSWebDeploymentAssembly.DynamicAssembly.Assembly != null)
             {
-                System.Reflection.AssemblyName assemblyName = MSWebDeploymentAssembly.DynamicAssembly.Assembly.GetName();
-                System.Version minVersion = new System.Version(currentMinVersion.Major, currentMinVersion.Minor);
-                System.Version assemblyVersion = assemblyName.Version; // assembly version only accurate to the minor version
+                AssemblyName assemblyName = MSWebDeploymentAssembly.DynamicAssembly.Assembly.GetName();
+                Version minVersion = new(currentMinVersion.Major, currentMinVersion.Minor);
+                Version? assemblyVersion = assemblyName.Version; // assembly version only accurate to the minor version
                 bool fMinVersionNotMeet = false;
 
                 if (assemblyVersion < minVersion)
@@ -537,7 +532,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
 
                 if (fMinVersionNotMeet)
                 {
-                    _strErrorMessage = string.Format(System.Globalization.CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_MSDEPLOYLOADFAIL,
+                    _strErrorMessage = string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_MSDEPLOYLOADFAIL,
                         Resources.VSMSDEPLOY_MSDEPLOY32bit,
                         Resources.VSMSDEPLOY_MSDEPLOY64bit,
                         assemblyVersion,
@@ -550,16 +545,16 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             else
             {
 #if NET472
-                _strErrorMessage = string.Format(System.Globalization.CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_MSDEPLOYLOADFAIL,
+                _strErrorMessage = string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_MSDEPLOYLOADFAIL,
                  Resources.VSMSDEPLOY_MSDEPLOY32bit,
                  Resources.VSMSDEPLOY_MSDEPLOY64bit,
-                 new System.Version(),
+                 new Version(),
                  currentMinVersion);
 #else
-                _strErrorMessage = string.Format(System.Globalization.CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_MSDEPLOYLOADFAIL,
+                _strErrorMessage = string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_MSDEPLOYLOADFAIL,
                  Resources.VSMSDEPLOY_MSDEPLOY32bit,
                  Resources.VSMSDEPLOY_MSDEPLOY64bit,
-                 new System.Version(3,6),
+                 new System.Version(3, 6),
                  currentMinVersion);
 #endif
                 return false;
@@ -574,7 +569,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         /// <param name="xmlPath"></param>
         /// <param name="defaultNamespace"></param>
         /// <returns></returns>
-        public static string GetNodeFromProjectFile(Xml.XmlDocument doc, Xml.XmlNamespaceManager xmlnsManager,
+        public static string? GetNodeFromProjectFile(XmlDocument doc, XmlNamespaceManager xmlnsManager,
             string xmlPath, string defaultNamespace)
         {
             if (doc == null)
@@ -583,11 +578,11 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             string searchPath = xmlPath;
             if (!string.IsNullOrEmpty(defaultNamespace))
             {
-                RegularExpressions.Regex regex = new System.Text.RegularExpressions.Regex(@"([\w]+)");
+                RegularExpressions.Regex regex = new(@"([\w]+)");
                 searchPath = regex.Replace(xmlPath, defaultNamespace + @":$1");
             }
 
-            Xml.XmlNode xmlNode = doc.SelectSingleNode(searchPath, xmlnsManager);
+            XmlNode xmlNode = doc.SelectSingleNode(searchPath, xmlnsManager);
             if (xmlNode != null)
             {
                 return xmlNode.InnerText;
@@ -601,9 +596,9 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         /// <param name="item"></param>
         /// <param name="arguments"></param>
         /// <param name="enumType"></param>
-        static internal void BuildArgumentsBaseOnEnumTypeName(Framework.ITaskItem item, System.Collections.Generic.List<string> arguments, System.Type enumType, string valueQuote)
+        internal static void BuildArgumentsBaseOnEnumTypeName(Framework.ITaskItem item, List<string> arguments, Type enumType, string? valueQuote)
         {
-            string[] enumNames = System.Enum.GetNames(enumType);
+            string[] enumNames = Enum.GetNames(enumType);
             foreach (string enumName in enumNames)
             {
                 string data = item.GetMetadata(enumName);
@@ -611,7 +606,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                 {
                     string valueData = PutValueInQuote(data, valueQuote);
 #if NET472
-                    arguments.Add(string.Concat(enumName.ToLower(System.Globalization.CultureInfo.InvariantCulture), "=", valueData));
+                    arguments.Add(string.Concat(enumName.ToLower(CultureInfo.InvariantCulture), "=", valueData));
 #else
                     arguments.Add(string.Concat(enumName.ToLower(), "=", valueData));
 #endif
@@ -619,7 +614,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
         }
 
-        static internal string AlternativeQuote(string valueQuote)
+        internal static string AlternativeQuote(string? valueQuote)
         {
             if (string.IsNullOrEmpty(valueQuote) || valueQuote == "\"")
             {
@@ -631,14 +626,14 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
         }
 
-        static public char[] s_specialCharactersForCmd = @"&()[]{}^=;!'+,`~".ToArray();
-        static internal string PutValueInQuote(string value, string quote)
+        public static char[] s_specialCharactersForCmd = @"&()[]{}^=;!'+,`~".ToArray();
+        internal static string PutValueInQuote(string value, string? quote)
         {
             if (string.IsNullOrEmpty(quote))
             {
-                if (value != null & value.IndexOfAny(s_specialCharactersForCmd) >= 0)
+                if (value is not null && value.IndexOfAny(s_specialCharactersForCmd) >= 0)
                 {
-                    // any command line special characters, we use doubld quote by default
+                    // any command line special characters, we use double quote by default
                     quote = "\"";
                 }
                 else
@@ -646,22 +641,21 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                     // otherwise we pick the smart one.
                     quote = AlternativeQuote(quote);
                 }
-                if (!string.IsNullOrEmpty(value))
+                if (value is not null && value.Length != 0)
                 {
                     if (value.Contains(quote))
                     {
                         quote = AlternativeQuote(quote);
                     }
                 }
-                
+
             }
             return string.Concat(quote, value, quote);
         }
 
-
-        public static bool IsOneof(string source, string[] listOfItems, System.StringComparison comparsion)
+        public static bool IsOneOf(string source, string[] listOfItems, StringComparison comparsion)
         {
-            if (listOfItems != null && !string.IsNullOrEmpty(source))
+            if (listOfItems is not null && !string.IsNullOrEmpty(source))
             {
                 foreach (string item in listOfItems)
                 {
@@ -675,7 +669,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         }
 
         /// <summary>
-        /// Utiilty function to prompt commom end of Execution message for msdeploy.exe
+        /// Utility function to prompt common end of Execution message for msdeploy.exe
         /// 
         /// </summary>
         /// <param name="bSuccess"></param>
@@ -686,29 +680,29 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         {
             bool fNeedUnpackageHelpLink = false;
             string strSucceedFailMsg;
-            string[] packageArchivedir = new string[] { MSDeploy.Provider.ArchiveDir, MSDeploy.Provider.Package};
+            string[] packageArchivedir = new string[] { MSDeploy.Provider.ArchiveDir, MSDeploy.Provider.Package };
             string[] ArchiveDirOnly = new string[] { MSDeploy.Provider.ArchiveDir };
             if (bSuccess)
             {
 #if NET472
-                if (IsOneof(destType, packageArchivedir, System.StringComparison.InvariantCultureIgnoreCase))
+                if (IsOneOf(destType, packageArchivedir, StringComparison.InvariantCultureIgnoreCase))
 #else
-                if (IsOneof(destType, packageArchivedir, System.StringComparison.OrdinalIgnoreCase))
+                if (IsOneOf(destType, packageArchivedir, StringComparison.OrdinalIgnoreCase))
 #endif
                 {
                     //strip off the trailing slash, so IO.Path.GetDirectoryName/GetFileName will return values correctly
                     destRoot = StripOffTrailingSlashes(destRoot);
 
-                    string dir = IO.Path.GetDirectoryName(destRoot);
+                    string dir = Path.GetDirectoryName(destRoot) ?? string.Empty;
                     string dirUri = ConvertAbsPhysicalPathToAbsUriPath(dir);
 #if NET472
-                    if (IsOneof(destType, ArchiveDirOnly, System.StringComparison.InvariantCultureIgnoreCase))
+                    if (IsOneOf(destType, ArchiveDirOnly, StringComparison.InvariantCultureIgnoreCase))
 #else
-                    if (IsOneof(destType, ArchiveDirOnly, System.StringComparison.OrdinalIgnoreCase))
+                    if (IsOneOf(destType, ArchiveDirOnly, StringComparison.OrdinalIgnoreCase))
 #endif
-                        strSucceedFailMsg = string.Format(System.Globalization.CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_SucceedArchiveDir, string.IsNullOrEmpty(dirUri) ? destRoot : dirUri);
+                        strSucceedFailMsg = string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_SucceedArchiveDir, string.IsNullOrEmpty(dirUri) ? destRoot : dirUri);
                     else
-                        strSucceedFailMsg = string.Format(System.Globalization.CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_SucceedPackage, IO.Path.GetFileName(destRoot), string.IsNullOrEmpty(dirUri) ? destRoot : dirUri);
+                        strSucceedFailMsg = string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_SucceedPackage, Path.GetFileName(destRoot), string.IsNullOrEmpty(dirUri) ? destRoot : dirUri);
                     fNeedUnpackageHelpLink = true;
                 }
                 else
@@ -719,9 +713,9 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             else
             {
 #if NET472
-                if (IsOneof(destType, packageArchivedir, System.StringComparison.InvariantCultureIgnoreCase))
+                if (IsOneOf(destType, packageArchivedir, StringComparison.InvariantCultureIgnoreCase))
 #else
-                if (IsOneof(destType, packageArchivedir, System.StringComparison.OrdinalIgnoreCase))
+                if (IsOneOf(destType, packageArchivedir, StringComparison.OrdinalIgnoreCase))
 #endif
                 {
                     strSucceedFailMsg = Resources.VSMSDEPLOY_FailedPackage;
@@ -738,28 +732,31 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                 Log.LogMessage(Framework.MessageImportance.High, Resources.VSMSDEPLOY_WebPackageHelpLink);
             }
         }
-      
+
         /// <summary>
-        /// Utiilty function to prompt commom end of Execution message
+        /// Utility function to prompt common end of Execution message
         /// </summary>
         /// <param name="bSuccess"></param>
         /// <param name="destType"></param>
         /// <param name="destRoot"></param>
         /// <param name="Log"></param>
-        public static void MsDeployEndOfExecuteMessage(bool bSuccess, string destType, string destRoot, Utilities.TaskLoggingHelper Log )
+        public static void MsDeployEndOfExecuteMessage(bool bSuccess, string destType, string destRoot, Utilities.TaskLoggingHelper Log)
         {
             // Deployment.DeploymentWellKnownProvider wellKnownProvider =  Deployment.DeploymentWellKnownProvider.Unknown;
-            System.Type DeploymentWellKnownProviderType = MSWebDeploymentAssembly.DynamicAssembly.GetType(MSDeploy.TypeName.DeploymentWellKnownProvider);
-            dynamic wellKnownProvider = MSWebDeploymentAssembly.DynamicAssembly.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, "Unknown");
+            Type? DeploymentWellKnownProviderType = MSWebDeploymentAssembly.DynamicAssembly?.GetType(MSDeploy.TypeName.DeploymentWellKnownProvider);
+            dynamic? wellKnownProvider = MSWebDeploymentAssembly.DynamicAssembly?.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, "Unknown");
 #if NET472
-            if (string.Compare(destType, MSDeploy.Provider.DbDacFx, System.StringComparison.InvariantCultureIgnoreCase) != 0)
+            if (string.Compare(destType, MSDeploy.Provider.DbDacFx, StringComparison.InvariantCultureIgnoreCase) != 0)
 #else
-            if (string.Compare(destType, MSDeploy.Provider.DbDacFx, System.StringComparison.OrdinalIgnoreCase) != 0)
+            if (string.Compare(destType, MSDeploy.Provider.DbDacFx, StringComparison.OrdinalIgnoreCase) != 0)
 #endif
             {
                 try
                 {
-                    wellKnownProvider = System.Enum.Parse(DeploymentWellKnownProviderType, destType, true);
+                    if (DeploymentWellKnownProviderType is not null)
+                    {
+                        wellKnownProvider = Enum.Parse(DeploymentWellKnownProviderType, destType, true);
+                    }
                 }
                 catch
                 {
@@ -770,31 +767,29 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             string strSucceedFailMsg;
             if (bSuccess)
             {
-                if (wellKnownProvider.Equals(MSWebDeploymentAssembly.DynamicAssembly.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.ArchiveDir)) ||
-                    wellKnownProvider.Equals(MSWebDeploymentAssembly.DynamicAssembly.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.Package)))
+                if (wellKnownProvider?.Equals(MSWebDeploymentAssembly.DynamicAssembly?.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.ArchiveDir)) ?? false ||
+                    wellKnownProvider?.Equals(MSWebDeploymentAssembly.DynamicAssembly?.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.Package)) ?? false)
                 {
                     //strip off the trailing slash, so IO.Path.GetDirectoryName/GetFileName will return values correctly
                     destRoot = StripOffTrailingSlashes(destRoot);
 
-                    string dir = IO.Path.GetDirectoryName(destRoot);
+                    string dir = Path.GetDirectoryName(destRoot) ?? string.Empty;
                     string dirUri = ConvertAbsPhysicalPathToAbsUriPath(dir);
-                    if (wellKnownProvider.Equals(MSWebDeploymentAssembly.DynamicAssembly.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.ArchiveDir)))
-                        strSucceedFailMsg = string.Format(System.Globalization.CultureInfo.CurrentCulture,Resources.VSMSDEPLOY_SucceedArchiveDir, string.IsNullOrEmpty(dirUri) ? destRoot : dirUri);
+                    if (wellKnownProvider?.Equals(MSWebDeploymentAssembly.DynamicAssembly?.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.ArchiveDir)) ?? false)
+                        strSucceedFailMsg = string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_SucceedArchiveDir, string.IsNullOrEmpty(dirUri) ? destRoot : dirUri);
                     else
-                        strSucceedFailMsg = string.Format(System.Globalization.CultureInfo.CurrentCulture,Resources.VSMSDEPLOY_SucceedPackage, IO.Path.GetFileName(destRoot), string.IsNullOrEmpty(dirUri) ? destRoot : dirUri);
+                        strSucceedFailMsg = string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_SucceedPackage, Path.GetFileName(destRoot), string.IsNullOrEmpty(dirUri) ? destRoot : dirUri);
                     fNeedUnpackageHelpLink = true;
                 }
                 else
                 {
                     strSucceedFailMsg = Resources.VSMSDEPLOY_SucceedDeploy;
                 }
-
-                 
             }
             else
             {
-                if (wellKnownProvider.Equals(MSWebDeploymentAssembly.DynamicAssembly.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.ArchiveDir)) ||
-                    wellKnownProvider.Equals(MSWebDeploymentAssembly.DynamicAssembly.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.Package)))
+                if (wellKnownProvider?.Equals(MSWebDeploymentAssembly.DynamicAssembly?.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.ArchiveDir)) ?? false ||
+                    wellKnownProvider?.Equals(MSWebDeploymentAssembly.DynamicAssembly?.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.Package)) ?? false)
                 {
                     strSucceedFailMsg = Resources.VSMSDEPLOY_FailedPackage;
                 }
@@ -811,12 +806,12 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
         }
 
-        static public string ConvertAbsPhysicalPathToAbsUriPath(string physicalPath)
+        public static string ConvertAbsPhysicalPathToAbsUriPath(string physicalPath)
         {
             string absUriPath = string.Empty;
             try
             {
-                System.Uri uri = new System.Uri(physicalPath);
+                Uri uri = new(physicalPath);
                 if (uri.IsAbsoluteUri)
                     absUriPath = uri.AbsoluteUri;
             }
@@ -825,31 +820,28 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         }
 
         // utility function to add the replace rule for the option
-        static public void AddReplaceRulesToOptions(/*Deployment.DeploymentRuleCollection*/ dynamic syncConfigRules, Framework.ITaskItem[] replaceRuleItems)
+        public static void AddReplaceRulesToOptions(/*Deployment.DeploymentRuleCollection*/ dynamic syncConfigRules, Framework.ITaskItem[] replaceRuleItems)
         {
-            if (syncConfigRules != null && replaceRuleItems != null)// Dev10 bug 496639 foreach will throw the exception if the replaceRuleItem is null
+            if (syncConfigRules is not null && replaceRuleItems is not null)// Dev10 bug 496639 foreach will throw the exception if the replaceRuleItem is null
             {
                 foreach (Framework.ITaskItem item in replaceRuleItems)
                 {
                     string ruleName = item.ItemSpec;
-                    string objectName = item.GetMetadata(MsDeploy.ReplaceRuleMetadata.ObjectName.ToString());
-                    string matchRegularExpression = item.GetMetadata(MsDeploy.ReplaceRuleMetadata.Match.ToString());
-                    string replaceWith = item.GetMetadata(MsDeploy.ReplaceRuleMetadata.Replace.ToString());
-                    string scopeAttributeName = item.GetMetadata(MsDeploy.ReplaceRuleMetadata.ScopeAttributeName.ToString());
-                    string scopeAttributeValue = item.GetMetadata(MsDeploy.ReplaceRuleMetadata.ScopeAttributeValue.ToString());
-                    string targetAttributeName = item.GetMetadata(MsDeploy.ReplaceRuleMetadata.TargetAttributeName.ToString());
+                    string objectName = item.GetMetadata(ReplaceRuleMetadata.ObjectName.ToString());
+                    string matchRegularExpression = item.GetMetadata(ReplaceRuleMetadata.Match.ToString());
+                    string replaceWith = item.GetMetadata(ReplaceRuleMetadata.Replace.ToString());
+                    string scopeAttributeName = item.GetMetadata(ReplaceRuleMetadata.ScopeAttributeName.ToString());
+                    string scopeAttributeValue = item.GetMetadata(ReplaceRuleMetadata.ScopeAttributeValue.ToString());
+                    string targetAttributeName = item.GetMetadata(ReplaceRuleMetadata.TargetAttributeName.ToString());
 
-                    
                     ///*Deployment.DeploymentReplaceRule*/ dynamic replaceRule =
                     //    new Deployment.DeploymentReplaceRule(ruleName, objectName, scopeAttributeName, 
                     //        scopeAttributeValue, targetAttributeName, matchRegularExpression, replaceWith);
 
-
                     /*Deployment.DeploymentReplaceRule*/
-                    dynamic replaceRule = MSWebDeploymentAssembly.DynamicAssembly.CreateObject("Microsoft.Web.Deployment.DeploymentReplaceRule",
+                    dynamic? replaceRule = MSWebDeploymentAssembly.DynamicAssembly?.CreateObject("Microsoft.Web.Deployment.DeploymentReplaceRule",
                         new object[]{ruleName, objectName, scopeAttributeName,
                         scopeAttributeValue, targetAttributeName, matchRegularExpression, replaceWith});
-
 
                     syncConfigRules.Add(replaceRule);
                 }
@@ -863,139 +855,137 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         /// <param name="stringList"></param>
         /// <param name="enabled"></param>
         /// <param name="log"></param>
-        static internal void AdjsutSkipDirectives(/*Deployment.DeploymentBaseOptions*/ dynamic baseOptions, Generic.List<string> stringList, bool enabled, Utilities.TaskLoggingHelper log)
+        internal static void AdjustSkipDirectives(/*Deployment.DeploymentBaseOptions*/ dynamic baseOptions, List<string> stringList, bool enabled, Utilities.TaskLoggingHelper log)
         {
-            if (stringList != null && baseOptions != null)
+            if (stringList is not null && baseOptions is not null)
             {
                 foreach (string name in stringList)
                 {
                     foreach (/*Deployment.DeploymentSkipDirective*/ dynamic skipDirective in baseOptions.SkipDirectives)
                     {
-                        if (string.Compare(skipDirective.Name, name,   System.StringComparison.OrdinalIgnoreCase) == 0)
+                        if (string.Compare(skipDirective.Name, name, StringComparison.OrdinalIgnoreCase) == 0)
                         {
                             if (skipDirective.Enabled != enabled)
                             {
                                 skipDirective.Enabled = enabled;
                             }
-                            log.LogMessage(string.Format(System.Globalization.CultureInfo.CurrentCulture,Resources.VSMSDEPLOY_SkipDirectiveSetEnable, skipDirective.Name, enabled.ToString()));
+                            log.LogMessage(string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_SkipDirectiveSetEnable, skipDirective.Name, enabled.ToString()));
 
                         }
                     }
-                    log.LogWarning(string.Format(System.Globalization.CultureInfo.CurrentCulture,Resources.VSMSDEPLOY_UnknownSkipDirective, name));
+                    log.LogWarning(string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_UnknownSkipDirective, name));
                 }
             }
         }
 
         // utility function to add the skip rule for the option
-        static public void AddSkipDirectiveToBaseOptions(/*Deployment.DeploymentBaseOptions*/ dynamic baseOptions , 
+        public static void AddSkipDirectiveToBaseOptions(/*Deployment.DeploymentBaseOptions*/ dynamic baseOptions,
             Framework.ITaskItem[] skipRuleItems,
-            Generic.List<string> enableSkipDirectiveList,
-            Generic.List<string> disableSkipDirectiveList,
+            List<string> enableSkipDirectiveList,
+            List<string> disableSkipDirectiveList,
             Utilities.TaskLoggingHelper log)
         {
-            if (baseOptions != null && skipRuleItems != null)
+            if (baseOptions is not null && skipRuleItems is not null)
             {
-                System.Collections.Generic.List<string> arguments = new System.Collections.Generic.List<string>(6);
+                List<string> arguments = new(6);
 
                 foreach (Framework.ITaskItem item in skipRuleItems)
                 {
                     arguments.Clear();
-                    MsDeploy.Utility.BuildArgumentsBaseOnEnumTypeName(item, arguments, typeof(SkipRuleMetadata), "\"");
+                    BuildArgumentsBaseOnEnumTypeName(item, arguments, typeof(SkipRuleMetadata), "\"");
                     if (arguments.Count > 0)
                     {
                         string name = item.ItemSpec;
                         ///*Deployment.DeploymentSkipDirective*/ dynamic skipDirective = new Microsoft.Web.Deployment.DeploymentSkipDirective(name, string.Join(",", arguments.ToArray()), true);
 
                         /*Deployment.DeploymentSkipDirective*/
-                        dynamic skipDirective =  MSWebDeploymentAssembly.DynamicAssembly.CreateObject("Microsoft.Web.Deployment.DeploymentSkipDirective", new object[]{name, string.Join(",", arguments.ToArray()), true});
+                        dynamic? skipDirective = MSWebDeploymentAssembly.DynamicAssembly?.CreateObject("Microsoft.Web.Deployment.DeploymentSkipDirective", new object[] { name, string.Join(",", arguments.ToArray()), true });
                         baseOptions.SkipDirectives.Add(skipDirective);
                     }
                 }
-                AdjsutSkipDirectives(baseOptions, enableSkipDirectiveList, true, log);
-                AdjsutSkipDirectives(baseOptions, disableSkipDirectiveList, false, log);
+                AdjustSkipDirectives(baseOptions, enableSkipDirectiveList, true, log);
+                AdjustSkipDirectives(baseOptions, disableSkipDirectiveList, false, log);
             }
         }
 
-    
         /// <summary>
         /// Utility to add single DeclareParameter to the list
         /// </summary>
         /// <param name="vSMSDeploySyncOption"></param>
         /// <param name="item"></param>
-        static public void AddDeclarParameterToOptions(/*VSMSDeploySyncOption*/ dynamic vSMSDeploySyncOption, Framework.ITaskItem item)
+        public static void AddDeclareParameterToOptions(/*VSMSDeploySyncOption*/ dynamic vSMSDeploySyncOption, Framework.ITaskItem item)
         {
-            if (item != null && vSMSDeploySyncOption != null)
+            if (item is not null && vSMSDeploySyncOption is not null)
             {
                 string name = item.ItemSpec;
-                string elemment = item.GetMetadata(MsDeploy.ExistingParameterValiationMetadata.Element.ToString());
-                if (string.IsNullOrEmpty(elemment))
-                    elemment = "parameterEntry";
-                string kind = item.GetMetadata(MsDeploy.DeclareParameterMetadata.Kind.ToString());
-                string scope = item.GetMetadata(MsDeploy.DeclareParameterMetadata.Scope.ToString());
-                string matchRegularExpression = item.GetMetadata(MsDeploy.DeclareParameterMetadata.Match.ToString());
-                string description = item.GetMetadata(MsDeploy.DeclareParameterMetadata.Description.ToString());
-                string defaultValue = item.GetMetadata(MsDeploy.DeclareParameterMetadata.DefaultValue.ToString());
-                string tags = item.GetMetadata(MsDeploy.DeclareParameterMetadata.Tags.ToString());
+                string element = item.GetMetadata(ExistingParameterValidationMetadata.Element.ToString());
+                if (string.IsNullOrEmpty(element))
+                    element = "parameterEntry";
+                string kind = item.GetMetadata(DeclareParameterMetadata.Kind.ToString());
+                string scope = item.GetMetadata(DeclareParameterMetadata.Scope.ToString());
+                string matchRegularExpression = item.GetMetadata(DeclareParameterMetadata.Match.ToString());
+                string description = item.GetMetadata(DeclareParameterMetadata.Description.ToString());
+                string defaultValue = item.GetMetadata(DeclareParameterMetadata.DefaultValue.ToString());
+                string tags = item.GetMetadata(DeclareParameterMetadata.Tags.ToString());
 
-                dynamic deploymentSyncParameter= null;
+                dynamic? deploymentSyncParameter = null;
                 // the following have out argument, can't use dynamic on it
                 // vSMSDeploySyncOption.DeclaredParameters.TryGetValue(name, out deploymentSyncParameter);
                 MSWebDeploymentAssembly.DeploymentTryGetValueContains(vSMSDeploySyncOption.DeclaredParameters, name, out deploymentSyncParameter);
 
                 if (deploymentSyncParameter == null)
                 {
-                    deploymentSyncParameter = 
-                       MSWebDeploymentAssembly.DynamicAssembly.CreateObject("Microsoft.Web.Deployment.DeploymentSyncParameter", new object[]{name, description, defaultValue, tags});
+                    deploymentSyncParameter =
+                       MSWebDeploymentAssembly.DynamicAssembly?.CreateObject("Microsoft.Web.Deployment.DeploymentSyncParameter", new object[] { name, description, defaultValue, tags });
                     vSMSDeploySyncOption.DeclaredParameters.Add(deploymentSyncParameter);
                 }
                 if (!string.IsNullOrEmpty(kind))
                 {
-                    if (string.Compare(elemment, "parameterEntry", System.StringComparison.OrdinalIgnoreCase) == 0)
+                    if (string.Compare(element, "parameterEntry", StringComparison.OrdinalIgnoreCase) == 0)
                     {
                         bool fAddEntry = true;
-                        foreach (dynamic entry in deploymentSyncParameter.Entries)
+                        foreach (dynamic entry in deploymentSyncParameter?.Entries ?? Array.Empty<dynamic>())
                         {
                             if (scope.Equals(entry.Scope) &&
                                 matchRegularExpression.Equals(entry.Match) &&
-                                string.Compare(entry.Kind.ToString(), kind, System.StringComparison.OrdinalIgnoreCase) == 0)
+                                string.Compare(entry.Kind.ToString(), kind, StringComparison.OrdinalIgnoreCase) == 0)
                             {
                                 fAddEntry = false;
                             }
                         }
                         if (fAddEntry)
                         {
-                            dynamic parameterEntry = MSWebDeploymentAssembly.DynamicAssembly.CreateObject("Microsoft.Web.Deployment.DeploymentSyncParameterEntry",
+                            dynamic? parameterEntry = MSWebDeploymentAssembly.DynamicAssembly?.CreateObject("Microsoft.Web.Deployment.DeploymentSyncParameterEntry",
                                 new object[] { kind, scope, matchRegularExpression, string.Empty });
-                            deploymentSyncParameter.Add(parameterEntry);
+                            deploymentSyncParameter?.Add(parameterEntry);
                         }
                     }
-                    else if (string.Compare(elemment, "parameterValidation", System.StringComparison.OrdinalIgnoreCase) == 0)
+                    else if (string.Compare(element, "parameterValidation", StringComparison.OrdinalIgnoreCase) == 0)
                     {
                         // this is bogus assertion because by default msdeploy always setup the validation which is never be null
                         // System.Diagnostics.Debug.Assert(deploymentSyncParameter.Validation == null, "deploymentSyncParameter.Validation is already set");
-                        string validationString = item.GetMetadata(MsDeploy.ExistingParameterValiationMetadata.ValidationString.ToString());
+                        string validationString = item.GetMetadata(ExistingParameterValidationMetadata.ValidationString.ToString());
 
-                        object validationKindNone = MSWebDeploymentAssembly.DynamicAssembly.GetEnumValue("Microsoft.Web.Deployment.DeploymentSyncParameterValidationKind", "None");
-                        dynamic validationKind = validationKindNone;
-                        System.Type validationKindType = validationKind.GetType();
-                        dynamic currentvalidationKind = validationKindNone;
-
+                        object? validationKindNone = MSWebDeploymentAssembly.DynamicAssembly?.GetEnumValue("Microsoft.Web.Deployment.DeploymentSyncParameterValidationKind", "None");
+                        dynamic? validationKind = validationKindNone;
+                        Type? validationKindType = validationKind?.GetType();
                         string[] validationKinds = kind.Split(new char[] { ',' });
 
                         foreach (string strValidationKind in validationKinds)
                         {
-                            if (MSWebDeploymentAssembly.DynamicAssembly.TryGetEnumValue("Microsoft.Web.Deployment.DeploymentSyncParameterValidationKind", strValidationKind, out currentvalidationKind))
+                            dynamic? currentValidationKind;
+                            if (validationKindType is not null && (MSWebDeploymentAssembly.DynamicAssembly?.TryGetEnumValue("Microsoft.Web.Deployment.DeploymentSyncParameterValidationKind", strValidationKind, out currentValidationKind) ?? false))
                             {
-                                validationKind = System.Enum.ToObject(validationKindType, ((int)(validationKind)) | ((int)(currentvalidationKind)));
+                                validationKind = Enum.ToObject(validationKindType, ((int)(validationKind)) | ((int)(currentValidationKind)));
                             }
                         }
                         // dynamic doesn't compare, since this is enum, cast to int to compare
-                        if ((int)validationKind != (int)validationKindNone)
+                        if (validationKind is not null && (int)validationKind != (int)(validationKindNone ?? 0))
                         {
                             // due to the reflection the we can't
                             // $exception	{"Cannot implicitly convert type 'object' to 'Microsoft.Web.Deployment.DeploymentSyncParameterValidation'. An explicit conversion exists (are you missing a cast?)"}	System.Exception {Microsoft.CSharp.RuntimeBinder.RuntimeBinderException}
-                            object parameterValidation = 
-                                MSWebDeploymentAssembly.DynamicAssembly.CreateObject("Microsoft.Web.Deployment.DeploymentSyncParameterValidation", new object[] {validationKind, validationString});
+                            object? parameterValidation =
+                                MSWebDeploymentAssembly.DynamicAssembly?.CreateObject("Microsoft.Web.Deployment.DeploymentSyncParameterValidation", new object[] { validationKind, validationString });
                             SetDynamicProperty(deploymentSyncParameter, "Validation", parameterValidation);
                         }
                     }
@@ -1010,39 +1000,37 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         /// <param name="thisObj"></param>
         /// <param name="propertyName"></param>
         /// <param name="value"></param>
-        static public void SetDynamicProperty(dynamic thisObj, string propertyName, object value)
+        public static void SetDynamicProperty(dynamic? thisObj, string propertyName, object value)
         {
-            thisObj.GetType().GetProperty(propertyName).SetValue(thisObj, value, null);
+            thisObj?.GetType().GetProperty(propertyName).SetValue(thisObj, value, null);
         }
-
 
         /// <summary>
         /// Utility function to add DeclareParameter in line
         /// </summary>
         /// <param name="vSMSDeploySyncOption"></param>
         /// <param name="items"></param>
-        static public void AddDeclareParametersToOptions(/*VSMSDeploySyncOption*/ dynamic vSMSDeploySyncOption, Framework.ITaskItem[] originalItems, bool fOptimisticPickNextDefaultValue)
+        public static void AddDeclareParametersToOptions(/*VSMSDeploySyncOption*/ dynamic vSMSDeploySyncOption, Framework.ITaskItem[] originalItems, bool fOptimisticPickNextDefaultValue)
         {
-            System.Collections.Generic.IList<Framework.ITaskItem> items = MsDeploy.Utility.SortParametersTaskItems(originalItems, fOptimisticPickNextDefaultValue, MsDeploy.DeclareParameterMetadata.DefaultValue.ToString());
-            if (vSMSDeploySyncOption != null && items != null)
+            IList<Framework.ITaskItem> items = SortParametersTaskItems(originalItems, fOptimisticPickNextDefaultValue, DeclareParameterMetadata.DefaultValue.ToString());
+            if (vSMSDeploySyncOption is not null && items is not null)
             {
                 foreach (Framework.ITaskItem item in items)
                 {
-                    AddDeclarParameterToOptions(vSMSDeploySyncOption, item);
+                    AddDeclareParameterToOptions(vSMSDeploySyncOption, item);
                 }
             }
         }
 
-
         // MSDeploy change -- Deprecate
         ///// <summary>
-        ///// Utility function to support DeclarParametersFromFile
+        ///// Utility function to support DeclareParametersFromFile
         ///// </summary>
         ///// <param name="vSMSDeploySyncOption"></param>
         ///// <param name="items"></param>
-        static public void AddImportDeclareParametersFileOptions(/*VSMSDeploySyncOption*/ dynamic vSMSDeploySyncOption, Framework.ITaskItem[] items)
+        public static void AddImportDeclareParametersFileOptions(/*VSMSDeploySyncOption*/ dynamic vSMSDeploySyncOption, Framework.ITaskItem[] items)
         {
-            if (vSMSDeploySyncOption != null && items != null)
+            if (vSMSDeploySyncOption is not null && items is not null)
             {
                 foreach (Framework.ITaskItem item in items)
                 {
@@ -1052,9 +1040,9 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
         }
 
-        static public void AddSetParametersFilesToObject(/*Deployment.DeploymentObject*/ dynamic deploymentObject, Generic.IList<string> filenames, IVSMSDeployHost host)
+        public static void AddSetParametersFilesToObject(/*Deployment.DeploymentObject*/ dynamic deploymentObject, IList<string> filenames, IVSMSDeployHost host)
         {
-            if (deploymentObject != null && filenames != null)
+            if (deploymentObject is not null && filenames is not null)
             {
                 foreach (string filename in filenames)
                 {
@@ -1064,7 +1052,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                         {
                             deploymentObject.SyncParameters.Load(filename);
                         }
-                        catch (System.Exception e)
+                        catch (Exception e)
                         {
                             if (host != null)
                                 host.Log.LogErrorFromException(e);
@@ -1077,14 +1065,14 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         }
 
         /// <summary>
-        /// Utility function to set SimpleeSyncParameter Name/Value
+        /// Utility function to set SimpleSyncParameter Name/Value
         /// </summary>
         /// <param name="vSMSDeploySyncOption"></param>
         /// <param name="items"></param>
-        static public void AddSimpleSetParametersVsMsDeployObject(MsDeploy.VSMSDeployObject srcVsMsDeployobject, Framework.ITaskItem[] originalItems, bool fOptimisticPickNextDefaultValue)
+        public static void AddSimpleSetParametersVsMsDeployObject(VSMSDeployObject srcVsMsDeployobject, Framework.ITaskItem[]? originalItems, bool fOptimisticPickNextDefaultValue)
         {
-            System.Collections.Generic.IList<Framework.ITaskItem> items = MsDeploy.Utility.SortParametersTaskItems(originalItems, fOptimisticPickNextDefaultValue, MsDeploy.SimpleSyncParameterMetadata.Value.ToString());
-            if (srcVsMsDeployobject != null && items != null)
+            IList<Framework.ITaskItem> items = SortParametersTaskItems(originalItems, fOptimisticPickNextDefaultValue, SimpleSyncParameterMetadata.Value.ToString());
+            if (srcVsMsDeployobject is not null && items is not null)
             {
                 string lastItemName = string.Empty;
                 foreach (Framework.ITaskItem item in items)
@@ -1092,7 +1080,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                     string name = item.ItemSpec;
                     if (string.CompareOrdinal(name, lastItemName) != 0)
                     {
-                        string value = item.GetMetadata(MsDeploy.SimpleSyncParameterMetadata.Value.ToString());
+                        string value = item.GetMetadata(SimpleSyncParameterMetadata.Value.ToString());
                         srcVsMsDeployobject.SyncParameter(name, value);
                         lastItemName = name;
                     }
@@ -1100,9 +1088,9 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
         }
 
-        static public void AddProviderOptions(/*Deployment.DeploymentProviderOptions*/ dynamic deploymentProviderOptions, Generic.IList<ProviderOption> providerOptions, IVSMSDeployHost host)
+        public static void AddProviderOptions(/*Deployment.DeploymentProviderOptions*/ dynamic deploymentProviderOptions, IList<ProviderOption> providerOptions, IVSMSDeployHost host)
         {
-            if (deploymentProviderOptions != null && providerOptions != null)
+            if (deploymentProviderOptions is not null && providerOptions is not null)
             {
                 foreach (ProviderOption item in providerOptions)
                 {
@@ -1111,9 +1099,9 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                     string value = item.Value;
                     // Error handling is not required here if the providerOptions list is different from deploymentProviderOptions.ProviderSettings.
                     // providerOptions list contains metadata from MSBuild and this may be different from deploymentProviderOptions.ProviderSettings.
-                    if (string.Compare(factoryName, deploymentProviderOptions.Factory.Name, System.StringComparison.OrdinalIgnoreCase) == 0)
+                    if (string.Compare(factoryName, deploymentProviderOptions.Factory.Name, StringComparison.OrdinalIgnoreCase) == 0)
                     {
-                        dynamic setting = null;
+                        dynamic? setting = null;
 
                         // deploymentProviderOptions.ProviderSettings.TryGetValue(name, out setting);
                         MSWebDeploymentAssembly.DeploymentTryGetValueForEach(deploymentProviderOptions.ProviderSettings, name, out setting);
@@ -1126,31 +1114,30 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
         }
 
-
         /// <summary>
-        /// Utility function to set SimpleeSyncParameter Name/Value
+        /// Utility function to set SimpleSyncParameter Name/Value
         /// </summary>
         /// <param name="vSMSDeploySyncOption"></param>
         /// <param name="items"></param>
-        static public void AddSimpleSetParametersToObject(/*Deployment.DeploymentObject*/ dynamic deploymentObject, Generic.IList<ParameterInfo> parameters, IVSMSDeployHost host)
+        public static void AddSimpleSetParametersToObject(/*Deployment.DeploymentObject*/ dynamic deploymentObject, IList<ParameterInfo> parameters, IVSMSDeployHost host)
         {
-            if (deploymentObject != null && parameters != null)
+            if (deploymentObject is not null && parameters is not null)
             {
-                Generic.Dictionary<string, string> nameValueDictionary = new System.Collections.Generic.Dictionary<string, string>(parameters.Count, System.StringComparer.OrdinalIgnoreCase);
+                Dictionary<string, string> nameValueDictionary = new(parameters.Count, StringComparer.OrdinalIgnoreCase);
                 foreach (ParameterInfo item in parameters)
                 {
                     string name = item.Name;
-                    string value;
+                    string? value;
                     if (!nameValueDictionary.TryGetValue(name, out value))
                     {
                         value = item.Value;
                     }
-                    
-                    dynamic parameter = null;
+
+                    dynamic? parameter = null;
                     // deploymentObject.SyncParameters.TryGetValue(name, out parameter);
                     MSWebDeploymentAssembly.DeploymentTryGetValueContains(deploymentObject.SyncParameters, name, out parameter);
-                    string msg = string.Format(System.Globalization.CultureInfo.CurrentCulture,Resources.VSMSDEPLOY_AddParameterIntoObject, name, value, deploymentObject.Name);
-                    host.Log.LogMessage(msg);
+                    string msg = string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_AddParameterIntoObject, name, value, deploymentObject.Name);
+                    host?.Log.LogMessage(msg);
                     if (parameter != null)
                     {
                         parameter.Value = value;
@@ -1158,7 +1145,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                     else
                     {
                         // Try to get error message to show.
-                        Text.StringBuilder sb = MsDeploy.Utility.CleanStringBuilder;
+                        StringBuilder sb = CleanStringBuilder;
                         foreach (dynamic param in deploymentObject.SyncParameters)
                         {
                             if (sb.Length != 0)
@@ -1168,101 +1155,78 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                             sb.Append(param.Name);
                         }
                         // To do, change this to resource
-                        string errMessage = string.Format(System.Globalization.CultureInfo.CurrentCulture,Resources.VSMSDEPLOY_UnknownParameter, name, sb.ToString());
+                        string errMessage = string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_UnknownParameter, name, sb.ToString());
                         if (host != null)
                         {
-                            throw new System.InvalidOperationException(errMessage);
+                            throw new InvalidOperationException(errMessage);
                         }
                     }
                 }
             }
         }
 
-
         /// <summary>
         /// Utility function to setParameters in type, scope, match, value of SyncParameter
         /// </summary>
         /// <param name="vSMSDeploySyncOption"></param>
         /// <param name="items"></param>
-        static public void AddSetParametersToObject(/*Deployment.DeploymentObject*/ dynamic deploymentObject, Generic.IList<ParameterInfoWithEntry> parameters, IVSMSDeployHost host)
+        public static void AddSetParametersToObject(/*Deployment.DeploymentObject*/ dynamic deploymentObject, IList<ParameterInfoWithEntry> parameters, IVSMSDeployHost host)
         {
-            if (deploymentObject != null && parameters != null)
+            if (deploymentObject is not null && parameters is not null)
             {
-                Generic.Dictionary<string, string> nameValueDictionary = new System.Collections.Generic.Dictionary<string, string>(parameters.Count, System.StringComparer.OrdinalIgnoreCase);
-                Generic.Dictionary<string, string> entryIdentityDictionary = new System.Collections.Generic.Dictionary<string, string>(parameters.Count);
-                
+                Dictionary<string, string> nameValueDictionary = new(parameters.Count, StringComparer.OrdinalIgnoreCase);
+                Dictionary<string, string?> entryIdentityDictionary = new(parameters.Count);
+
                 foreach (ParameterInfoWithEntry item in parameters)
                 {
                     try
                     {
-                        string data = null;
+                        string? data = null;
                         if (!nameValueDictionary.TryGetValue(item.Name, out data))
                         {
                             nameValueDictionary.Add(item.Name, item.Value);
                             data = item.Value;
                         }
 
-                        dynamic parameter = null;
-                        dynamic parameterEntry = null;
-                        dynamic parameterValidation = null;
+                        dynamic? parameter = null;
+                        dynamic? parameterEntry = null;
+                        dynamic? parameterValidation = null;
                         if (!string.IsNullOrEmpty(item.Kind))
                         {
-                            string identityString = string.Join(";", new string []{item.Name, item.Kind, item.Scope, item.Match, item.Element, item.ValidationString});
+                            string identityString = string.Join(";", new string[] { item.Name, item.Kind, item.Scope, item.Match, item.Element, item.ValidationString });
                             if (!entryIdentityDictionary.ContainsKey(identityString))
                             {
-                                if (string.Compare(item.Element, "parameterEntry", System.StringComparison.OrdinalIgnoreCase) == 0)
+                                if (string.Compare(item.Element, "parameterEntry", StringComparison.OrdinalIgnoreCase) == 0)
                                 {
-                                    parameterEntry = MSWebDeploymentAssembly.DynamicAssembly.CreateObject("Microsoft.Web.Deployment.DeploymentSyncParameterEntry",
-                                        new object[]{item.Kind, item.Scope, item.Match, string.Empty});
+                                    parameterEntry = MSWebDeploymentAssembly.DynamicAssembly?.CreateObject("Microsoft.Web.Deployment.DeploymentSyncParameterEntry",
+                                        new object[] { item.Kind, item.Scope, item.Match, string.Empty });
                                 }
-                                else if (string.Compare(item.Element, "parameterValidation", System.StringComparison.OrdinalIgnoreCase) == 0)
+                                else if (string.Compare(item.Element, "parameterValidation", StringComparison.OrdinalIgnoreCase) == 0)
                                 {
-
                                     // this is bogus assertion because by default msdeploy always setup the validation which is never be null
                                     // System.Diagnostics.Debug.Assert(deploymentSyncParameter.Validation == null, "deploymentSyncParameter.Validation is already set");
                                     string validationString = item.ValidationString;
 
-                                    object validationKindNone = MSWebDeploymentAssembly.DynamicAssembly.GetEnumValue("Microsoft.Web.Deployment.DeploymentSyncParameterValidationKind", "None");
-                                    dynamic validationKind = validationKindNone;
-                                    System.Type validationKindType = validationKind.GetType();
-                                    dynamic currentvalidationKind = validationKindNone;
+                                    object? validationKindNone = MSWebDeploymentAssembly.DynamicAssembly?.GetEnumValue("Microsoft.Web.Deployment.DeploymentSyncParameterValidationKind", "None");
+                                    dynamic? validationKind = validationKindNone;
+                                    Type? validationKindType = validationKind?.GetType();
+                                    dynamic? currentvalidationKind = validationKindNone;
 
                                     string[] validationKinds = item.Kind.Split(new char[] { ',' });
 
                                     foreach (string strValidationKind in validationKinds)
                                     {
-                                        if (MSWebDeploymentAssembly.DynamicAssembly.TryGetEnumValue("Microsoft.Web.Deployment.DeploymentSyncParameterValidationKind", strValidationKind, out currentvalidationKind))
+                                        if (validationKindType is not null && (MSWebDeploymentAssembly.DynamicAssembly?.TryGetEnumValue("Microsoft.Web.Deployment.DeploymentSyncParameterValidationKind", strValidationKind, out currentvalidationKind) ?? false))
                                         {
-                                            validationKind = System.Enum.ToObject(validationKindType, ((int)(validationKind)) | ((int)(currentvalidationKind)));
+                                            validationKind = Enum.ToObject(validationKindType, ((int)(validationKind)) | ((int)(currentvalidationKind)));
                                         }
                                     }
                                     // dynamic doesn't compare, since this is enum, cast to int to compare
-                                    if ((int)validationKind != (int)validationKindNone)
+                                    if (validationKind is not null && (int)validationKind != (int)(validationKindNone ?? 0))
                                     {
                                         parameterValidation =
-                                            MSWebDeploymentAssembly.DynamicAssembly.CreateObject("Microsoft.Web.Deployment.DeploymentSyncParameterValidation", new object[] { validationKind, validationString });
+                                            MSWebDeploymentAssembly.DynamicAssembly?.CreateObject("Microsoft.Web.Deployment.DeploymentSyncParameterValidation", new object[] { validationKind, validationString });
                                     }
-
-
-
-
-                                    //Microsoft.Web.Deployment.DeploymentSyncParameterValidationKind validationKind = Microsoft.Web.Deployment.DeploymentSyncParameterValidationKind.None;
-                                    //Microsoft.Web.Deployment.DeploymentSyncParameterValidationKind currentvalidationKind;
-                                    //string[] validationKinds = item.Kind.Split(new char[] { ',' });
-
-                                    //foreach (string strValidationKind in validationKinds)
-                                    //{
-                                    //    if (System.Enum.TryParse<Microsoft.Web.Deployment.DeploymentSyncParameterValidationKind>(strValidationKind, out currentvalidationKind))
-                                    //    {
-                                    //        validationKind |= currentvalidationKind;
-                                    //    }
-                                    //}
-
-                                    //if (validationKind != Microsoft.Web.Deployment.DeploymentSyncParameterValidationKind.None)
-                                    //{
-
-                                    //    parameterValidation = new Microsoft.Web.Deployment.DeploymentSyncParameterValidation(validationKind, item.ValidationString);
-                                    //}
                                 }
                                 entryIdentityDictionary.Add(identityString, null);
                             }
@@ -1270,23 +1234,26 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
 
                         if (!MSWebDeploymentAssembly.DeploymentTryGetValueContains(deploymentObject.SyncParameters, item.Name, out parameter))
                         {
-                            parameter = MSWebDeploymentAssembly.DynamicAssembly.CreateObject("Microsoft.Web.Deployment.DeploymentSyncParameter",
-                                new object[] {item.Name, item.Description, item.DefaultValue, item.Tags});
+                            parameter = MSWebDeploymentAssembly.DynamicAssembly?.CreateObject("Microsoft.Web.Deployment.DeploymentSyncParameter",
+                                new object[] { item.Name, item.Description, item.DefaultValue, item.Tags });
                             deploymentObject.SyncParameters.Add(parameter);
-                            parameter.Value = data;
+                            if (parameter is not null)
+                            {
+                                parameter.Value = data;
+                            }
                         }
                         if (parameterEntry != null)
                         {
-                            parameter.Add(parameterEntry);
+                            parameter?.Add(parameterEntry);
                         }
                         if (parameterValidation != null)
                         {
-                            // due to the reflection, compiler complain on assign a object to type without explicit convertion
+                            // due to the reflection, compiler complain on assign a object to type without explicit conversion
                             // parameter.Validation = parameterValidation;
                             SetDynamicProperty(parameter, "Validation", parameterValidation);
                         }
                     }
-                    catch (System.Exception e)
+                    catch (Exception e)
                     {
                         if (host != null)
                             host.Log.LogErrorFromException(e);
@@ -1297,33 +1264,30 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
         }
 
-
-
         /// <summary>
         /// Utility function to setParameters in type, scope, match, value of SyncParameter
         /// </summary>
         /// <param name="vSMSDeploySyncOption"></param>
         /// <param name="items"></param>
-        static public void AddSetParametersVsMsDeployObject(MsDeploy.VSMSDeployObject srcVsMsDeployobject, Framework.ITaskItem[] originalItems,  bool fOptimisticPickNextDefaultValue)
+        public static void AddSetParametersVsMsDeployObject(VSMSDeployObject srcVsMsDeployobject, Framework.ITaskItem[]? originalItems, bool fOptimisticPickNextDefaultValue)
         {
-            System.Collections.Generic.IList<Framework.ITaskItem> items = MsDeploy.Utility.SortParametersTaskItems(originalItems, fOptimisticPickNextDefaultValue, MsDeploy.SyncParameterMetadata.DefaultValue.ToString());
-            if (srcVsMsDeployobject != null && items != null)
+            IList<Framework.ITaskItem> items = SortParametersTaskItems(originalItems, fOptimisticPickNextDefaultValue, SyncParameterMetadata.DefaultValue.ToString());
+            if (srcVsMsDeployobject is not null && items is not null)
             {
                 foreach (Framework.ITaskItem item in items)
                 {
                     string name = item.ItemSpec;
-                    string kind = item.GetMetadata(MsDeploy.SyncParameterMetadata.Kind.ToString());
-                    string scope = item.GetMetadata(MsDeploy.SyncParameterMetadata.Scope.ToString());
-                    string matchRegularExpression = item.GetMetadata(MsDeploy.SyncParameterMetadata.Match.ToString());
-                    string value = item.GetMetadata(MsDeploy.SyncParameterMetadata.Value.ToString());
-                    string description = item.GetMetadata(MsDeploy.SyncParameterMetadata.Description.ToString());
-                    string defaultValue = item.GetMetadata(MsDeploy.SyncParameterMetadata.DefaultValue.ToString());
-                    string tags = item.GetMetadata(MsDeploy.SyncParameterMetadata.Tags.ToString());
-                    string element = item.GetMetadata(MsDeploy.ExistingParameterValiationMetadata.Element.ToString());
+                    string kind = item.GetMetadata(SyncParameterMetadata.Kind.ToString());
+                    string scope = item.GetMetadata(SyncParameterMetadata.Scope.ToString());
+                    string matchRegularExpression = item.GetMetadata(SyncParameterMetadata.Match.ToString());
+                    string value = item.GetMetadata(SyncParameterMetadata.Value.ToString());
+                    string description = item.GetMetadata(SyncParameterMetadata.Description.ToString());
+                    string defaultValue = item.GetMetadata(SyncParameterMetadata.DefaultValue.ToString());
+                    string tags = item.GetMetadata(SyncParameterMetadata.Tags.ToString());
+                    string element = item.GetMetadata(ExistingParameterValidationMetadata.Element.ToString());
                     if (string.IsNullOrEmpty(element))
                         element = "parameterEntry";
-                    string validationString = item.GetMetadata(MsDeploy.ExistingParameterValiationMetadata.ValidationString.ToString());
-
+                    string validationString = item.GetMetadata(ExistingParameterValidationMetadata.ValidationString.ToString());
 
                     if (string.IsNullOrEmpty(value))
                     {
@@ -1331,14 +1295,13 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                     }
 
                     srcVsMsDeployobject.SyncParameter(name, value, kind, scope, matchRegularExpression, description, defaultValue, tags, element, validationString);
-                    
                 }
             }
         }
 
-        static public void AddSetParametersFilesVsMsDeployObject(VSMSDeployObject srcVsMsDeployobject, Framework.ITaskItem[] items)
+        public static void AddSetParametersFilesVsMsDeployObject(VSMSDeployObject srcVsMsDeployobject, Framework.ITaskItem[]? items)
         {
-            if (srcVsMsDeployobject != null && items != null)
+            if (srcVsMsDeployobject is not null && items is not null)
             {
                 foreach (Framework.ITaskItem item in items)
                 {
@@ -1348,15 +1311,12 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
         }
 
-
-
-
-        static public string DumpITeaskItem(Framework.ITaskItem iTaskItem)
+        public static string DumpITaskItem(Framework.ITaskItem iTaskItem)
         {
-            Text.StringBuilder sb = MsDeploy.Utility.CleanStringBuilder;
-            string itemspec = iTaskItem.ItemSpec;
+            StringBuilder sb = CleanStringBuilder;
+            string itemSpec = iTaskItem.ItemSpec;
             sb.Append("<Item Name=\"");
-            sb.Append(itemspec);
+            sb.Append(itemSpec);
             sb.Append("\">");
 
             foreach (string name in iTaskItem.MetadataNames)
@@ -1375,25 +1335,23 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             return sb.ToString();
         }
 
-
-
         public static bool IsDeploymentWellKnownProvider(string strProvider)
         {
 #if NET472
-            if (string.Compare(strProvider, MSDeploy.Provider.DbDacFx, System.StringComparison.InvariantCultureIgnoreCase) == 0)
+            if (string.Compare(strProvider, MSDeploy.Provider.DbDacFx, StringComparison.InvariantCultureIgnoreCase) == 0)
 #else
-            if (string.Compare(strProvider, MSDeploy.Provider.DbDacFx, System.StringComparison.OrdinalIgnoreCase) == 0)
+            if (string.Compare(strProvider, MSDeploy.Provider.DbDacFx, StringComparison.OrdinalIgnoreCase) == 0)
 #endif
             {
                 return true;
             }
-            object DeploymentWellKnownProviderUnknown = MSWebDeploymentAssembly.DynamicAssembly.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider , MSDeploy.Provider.Unknown) ;
-            object deploymentProvider = DeploymentWellKnownProviderUnknown;
+            object? DeploymentWellKnownProviderUnknown = MSWebDeploymentAssembly.DynamicAssembly?.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.Unknown);
+            object? deploymentProvider = DeploymentWellKnownProviderUnknown;
             try
             {
-                deploymentProvider = MSWebDeploymentAssembly.DynamicAssembly.GetEnumValueIgnoreCase(MSDeploy.TypeName.DeploymentWellKnownProvider, strProvider);
+                deploymentProvider = MSWebDeploymentAssembly.DynamicAssembly?.GetEnumValueIgnoreCase(MSDeploy.TypeName.DeploymentWellKnownProvider, strProvider);
             }
-            catch (System.Exception)
+            catch (Exception)
             {
             }
             return deploymentProvider != DeploymentWellKnownProviderUnknown;
@@ -1406,19 +1364,19 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         /// <param name="dirPath"></param>
         internal static void RemoveAllEmptyDirectories(string dirPath, Utilities.TaskLoggingHelper Log)
         {
-            if (!string.IsNullOrEmpty(dirPath) && IO.Directory.Exists(dirPath))
+            if (!string.IsNullOrEmpty(dirPath) && Directory.Exists(dirPath))
             {
-                IO.DirectoryInfo dirInfo = new System.IO.DirectoryInfo(dirPath);
+                DirectoryInfo dirInfo = new(dirPath);
                 RemoveAllEmptyDirectories(dirInfo, Log);
             }
         }
 
-        internal static void RemoveAllEmptyDirectories(IO.DirectoryInfo dirinfo, Utilities.TaskLoggingHelper log)
+        internal static void RemoveAllEmptyDirectories(DirectoryInfo dirinfo, Utilities.TaskLoggingHelper log)
         {
-            if(dirinfo != null && dirinfo.Exists)
+            if (dirinfo is not null && dirinfo.Exists)
             {
                 //Depth first search.
-                foreach (IO.DirectoryInfo subDirInfo in  dirinfo.GetDirectories())
+                foreach (DirectoryInfo subDirInfo in dirinfo.GetDirectories())
                 {
                     RemoveAllEmptyDirectories(subDirInfo, log);
                 }
@@ -1428,14 +1386,13 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                     dirinfo.Delete();
                     if (log != null)
                     {
-                        log.LogMessage(Microsoft.Build.Framework.MessageImportance.Normal, string.Format(System.Globalization.CultureInfo.CurrentCulture,Resources.BUILDTASK_RemoveEmptyDirectories_Deleting, dirinfo.FullName));
+                        log.LogMessage(Framework.MessageImportance.Normal, string.Format(CultureInfo.CurrentCulture, Resources.BUILDTASK_RemoveEmptyDirectories_Deleting, dirinfo.FullName));
                     }
-                    
                 }
             }
         }
 
-        static PriorityIndexComparer s_PriorityIndexComparer = null;
+        static PriorityIndexComparer? s_PriorityIndexComparer = null;
         internal static PriorityIndexComparer ParameterTaskComparer
         {
             get
@@ -1448,9 +1405,9 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
         }
 
-        public static Generic.IList<Framework.ITaskItem> SortParametersTaskItems(Framework.ITaskItem[] taskItems, bool fOptimisticPickNextNonNullDefaultValue, string PropertyName)
+        public static IList<Framework.ITaskItem> SortParametersTaskItems(Framework.ITaskItem[]? taskItems, bool fOptimisticPickNextNonNullDefaultValue, string PropertyName)
         {
-            Generic.IList<Framework.ITaskItem> sortedList = SortTaskItemsByPriority(taskItems);
+            IList<Framework.ITaskItem> sortedList = SortTaskItemsByPriority(taskItems);
 
             if (!fOptimisticPickNextNonNullDefaultValue || string.IsNullOrEmpty(PropertyName) || taskItems == null || taskItems.GetLength(0) <= 0)
             {
@@ -1458,9 +1415,9 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
             else
             {
-                Generic.List<Framework.ITaskItem> optimizedValueList = new System.Collections.Generic.List<Microsoft.Build.Framework.ITaskItem>(sortedList);
+                List<Framework.ITaskItem> optimizedValueList = new(sortedList);
 
-                Generic.Dictionary<string, bool> FoundDictionary = new System.Collections.Generic.Dictionary<string, bool>(optimizedValueList.Count, System.StringComparer.OrdinalIgnoreCase);
+                Dictionary<string, bool> FoundDictionary = new(optimizedValueList.Count, StringComparer.OrdinalIgnoreCase);
 
                 int maxCount = sortedList.Count;
                 int i = 0;
@@ -1472,7 +1429,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                     string itemSpec = item.ItemSpec;
                     if (FoundDictionary.ContainsKey(itemSpec))
                     {
-                        continue; // already scaned, move on to the next
+                        continue; // already scanned, move on to the next
                     }
                     else
                     {
@@ -1488,14 +1445,14 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                             bool found = false;
                             while (next < maxCount)
                             {
-                                Framework.ITaskItem nextitem = optimizedValueList[next++];
-                                if (string.Compare(itemSpec, nextitem.ItemSpec, System.StringComparison.OrdinalIgnoreCase) == 0)
+                                Framework.ITaskItem nextItem = optimizedValueList[next++];
+                                if (string.Compare(itemSpec, nextItem.ItemSpec, StringComparison.OrdinalIgnoreCase) == 0)
                                 {
-                                    string itemData = nextitem.GetMetadata(PropertyName);
+                                    string itemData = nextItem.GetMetadata(PropertyName);
                                     if (!string.IsNullOrEmpty(itemData))
                                     {
                                         // Get the data from the next best data
-                                        Utilities.TaskItem newItem = new Microsoft.Build.Utilities.TaskItem(item);
+                                        Utilities.TaskItem newItem = new(item);
                                         newItem.SetMetadata(PropertyName, itemData);
                                         optimizedValueList[currentItemIndex] = newItem;
                                         FoundDictionary[itemSpec] = true; // mark that we already fond teh item;
@@ -1515,35 +1472,34 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
         }
 
-
         static string strMsdeployFwlink1 = @"http://go.microsoft.com/fwlink/?LinkId=178034";
         static string strMsdeployFwlink2 = @"http://go.microsoft.com/fwlink/?LinkId=178035";
         static string strMsdeployFwlink3 = @"http://go.microsoft.com/fwlink/?LinkId=178036";
         static string strMsdeployFwlink4 = @"http://go.microsoft.com/fwlink/?LinkId=178587";
         static string strMsdeployFwlink5 = @"http://go.microsoft.com/fwlink/?LinkId=178589";
-        static internal string strMsdeployInstallationFwdLink = @"http://go.microsoft.com/?linkid=9278654";
+        internal static string strMsdeployInstallationFwdLink = @"http://go.microsoft.com/?linkid=9278654";
 
         static string[] strMsdeployFwlinks = { strMsdeployFwlink1, strMsdeployFwlink2, strMsdeployFwlink3, strMsdeployFwlink4, strMsdeployFwlink5 };
-        
-        static int ContainMsdeployFwlink(string errorMessage, out string provider)
+
+        static int ContainMsdeployFwlink(string errorMessage, out string? provider)
         {
             int index = -1;
             provider = null;
-            string[][] strMsDeployFwlinksArray = { strMsdeployFwlinks};
+            string[][] strMsDeployFwlinksArray = { strMsdeployFwlinks };
             foreach (string[] Fwlinks in strMsDeployFwlinksArray)
             {
                 for (int i = 0; i < Fwlinks.Length; i++)
                 {
                     string fwlink = Fwlinks[i];
                     int lastIndexOfFwLink = -1;
-                    if ( (lastIndexOfFwLink =  errorMessage.LastIndexOf(fwlink, System.StringComparison.OrdinalIgnoreCase)) >= 0)
+                    if ((lastIndexOfFwLink = errorMessage.LastIndexOf(fwlink, StringComparison.OrdinalIgnoreCase)) >= 0)
                     {
                         index = i;
                         if (i == 0)
                         {
                             string subError = errorMessage.Substring(0, lastIndexOfFwLink);
                             subError = subError.Trim();
-                            if ((lastIndexOfFwLink = subError.LastIndexOf(" ", System.StringComparison.Ordinal)) >= 0)
+                            if ((lastIndexOfFwLink = subError.LastIndexOf(" ", StringComparison.Ordinal)) >= 0)
                             {
                                 provider = subError.Substring(lastIndexOfFwLink + 1);
                             }
@@ -1555,11 +1511,10 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             return index;
         }
 
-        internal static bool IsType(System.Type type, System.Type checkType)
+        internal static bool IsType(Type type, Type? checkType)
         {
 #if NET472
-            if (checkType!=null && 
-                (type == checkType || type.IsSubclassOf(checkType)))
+            if (checkType != null && (type == checkType || type.IsSubclassOf(checkType)))
             {
                 return true;
             }
@@ -1567,17 +1522,17 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             return false;
         }
 
-        internal static string EnsureTrailingSlash(string str)
+        internal static string? EnsureTrailingSlash(string str)
         {
-            if (str != null && !str.EndsWith("/", System.StringComparison.Ordinal))
+            if (str != null && !str.EndsWith("/", StringComparison.Ordinal))
             {
                 str += "/";
             }
             return str;
         }
-        internal static string EnsureTrailingBackSlash(string str)
+        internal static string? EnsureTrailingBackSlash(string str)
         {
-            if (str != null && !str.EndsWith("\\", System.StringComparison.Ordinal))
+            if (str != null && !str.EndsWith("\\", StringComparison.Ordinal))
             {
                 str += "\\";
             }
@@ -1585,29 +1540,29 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         }
 
         // Utility to log VsMsdeploy Exception 
-        internal static void LogVsMsDeployException( Utilities.TaskLoggingHelper Log, System.Exception e)
+        internal static void LogVsMsDeployException(Utilities.TaskLoggingHelper Log, Exception e)
         {
-            if (e is System.Reflection.TargetInvocationException)
+            if (e is TargetInvocationException)
             {
                 if (e.InnerException != null)
                     e = e.InnerException;
             }
 
-            System.Text.StringBuilder strBuilder = new System.Text.StringBuilder(e.Message.Length * 4);
-            System.Type t = e.GetType();
-            if (IsType(t, MSWebDeploymentAssembly.DynamicAssembly.GetType( MSDeploy.TypeName.DeploymentEncryptionException)))
+            StringBuilder strBuilder = new(e.Message.Length * 4);
+            Type t = e.GetType();
+            if (IsType(t, MSWebDeploymentAssembly.DynamicAssembly?.GetType(MSDeploy.TypeName.DeploymentEncryptionException)))
             {
                 // dev10 695263 OGF: Encryption Error message needs more information for packaging
                 strBuilder.Append(Resources.VSMSDEPLOY_EncryptionExceptionMessage);
             }
-            else if (IsType(t,MSWebDelegationAssembly.DynamicAssembly.GetType(MSDeploy.TypeName.DeploymentException)))
+            else if (IsType(t, MSWebDelegationAssembly.DynamicAssembly?.GetType(MSDeploy.TypeName.DeploymentException)))
             {
-                System.Exception rootException = e;
+                Exception rootException = e;
                 dynamic lastDeploymentException = e;
                 while (rootException != null && rootException.InnerException != null)
                 {
                     rootException = rootException.InnerException;
-                    if (IsType(rootException.GetType(), MSWebDelegationAssembly.DynamicAssembly.GetType(MSDeploy.TypeName.DeploymentException)))
+                    if (IsType(rootException.GetType(), MSWebDelegationAssembly.DynamicAssembly?.GetType(MSDeploy.TypeName.DeploymentException)))
                         lastDeploymentException = rootException;
                 }
 
@@ -1615,33 +1570,33 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                 bool isWebException = rootException is System.Net.WebException;
                 if (isWebException)
                 {
-                    System.Net.WebException webException = rootException as System.Net.WebException;
+                    System.Net.WebException? webException = rootException as System.Net.WebException;
 
                     // 404 come in as ProtocolError
-                    if (webException.Status == System.Net.WebExceptionStatus.ProtocolError)
+                    if (webException?.Status == System.Net.WebExceptionStatus.ProtocolError)
                     {
-                        if (webException.Message.LastIndexOf("401", System.StringComparison.Ordinal) >= 0)
+                        if (webException.Message.LastIndexOf("401", StringComparison.Ordinal) >= 0)
                         {
                             strBuilder.Append(Resources.VSMSDEPLOY_WebException401Message);
                         }
-                        else if (webException.Message.LastIndexOf("404", System.StringComparison.Ordinal) >= 0)
+                        else if (webException.Message.LastIndexOf("404", StringComparison.Ordinal) >= 0)
                         {
                             strBuilder.Append(Resources.VSMSDEPLOY_WebException404Message);
                         }
-                        else if (webException.Message.LastIndexOf("502", System.StringComparison.Ordinal) >= 0)
+                        else if (webException.Message.LastIndexOf("502", StringComparison.Ordinal) >= 0)
                         {
                             strBuilder.Append(Resources.VSMSDEPLOY_WebException502Message);
                         }
-                        else if (webException.Message.LastIndexOf("550", System.StringComparison.Ordinal) >= 0)
+                        else if (webException.Message.LastIndexOf("550", StringComparison.Ordinal) >= 0)
                         {
                             strBuilder.Append(Resources.VSMSDEPLOY_WebException550Message);
                         }
-                        else if (webException.Message.LastIndexOf("551", System.StringComparison.Ordinal) >= 0)
+                        else if (webException.Message.LastIndexOf("551", StringComparison.Ordinal) >= 0)
                         {
                             strBuilder.Append(Resources.VSMSDEPLOY_WebException551Message);
                         }
                     }
-                    else if (webException.Status == System.Net.WebExceptionStatus.ConnectFailure)
+                    else if (webException?.Status == System.Net.WebExceptionStatus.ConnectFailure)
                     {
                         strBuilder.Append(Resources.VSMSDEPLOY_WebExceptionConnectFailureMessage);
                     }
@@ -1653,18 +1608,18 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                 else
                 {
                     string strMsg = lastDeploymentException.Message;
-                    string provider;
+                    string? provider;
                     int index = ContainMsdeployFwlink(strMsg, out provider);
                     if (index >= 0)
                     {
-                        object DeploymentWellKnownProviderUnknown = MSWebDeploymentAssembly.DynamicAssembly.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.Unknown);
+                        object? DeploymentWellKnownProviderUnknown = MSWebDeploymentAssembly.DynamicAssembly?.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.Unknown);
 
-                        dynamic wellKnownProvider = DeploymentWellKnownProviderUnknown;
+                        dynamic? wellKnownProvider = DeploymentWellKnownProviderUnknown;
                         // fwdlink1
                         if (index == 0)
                         {
                             string srErrorMessage = Resources.VSMSDEPLOY_MsDeployExceptionFwlink1Message;
-                            if (provider.LastIndexOf("sql", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                            if (provider?.LastIndexOf("sql", StringComparison.OrdinalIgnoreCase) >= 0)
                             {
                                 srErrorMessage = Resources.VSMSDEPLOY_MsDeployExceptionFwlink1SQLMessage;
                             }
@@ -1672,20 +1627,23 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                             {
                                 try
                                 {
-                                    wellKnownProvider = MSWebDeploymentAssembly.DynamicAssembly.GetEnumValueIgnoreCase(MSDeploy.TypeName.DeploymentWellKnownProvider, provider);
+                                    if (provider is not null)
+                                    {
+                                        wellKnownProvider = MSWebDeploymentAssembly.DynamicAssembly?.GetEnumValueIgnoreCase(MSDeploy.TypeName.DeploymentWellKnownProvider, provider);
+                                    }
                                 }
                                 catch
                                 {
                                     // don't cause the failure;
                                 }
 
-                                if (wellKnownProvider.Equals(MSWebDeploymentAssembly.DynamicAssembly.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.MetaKey))
-                                    || wellKnownProvider.Equals(MSWebDeploymentAssembly.DynamicAssembly.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.AppHostConfig)))
+                                if (wellKnownProvider?.Equals(MSWebDeploymentAssembly.DynamicAssembly?.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.MetaKey)) ?? false
+                                    || wellKnownProvider?.Equals(MSWebDeploymentAssembly.DynamicAssembly?.GetEnumValue(MSDeploy.TypeName.DeploymentWellKnownProvider, MSDeploy.Provider.AppHostConfig)) ?? false)
                                 {
                                     srErrorMessage = Resources.VSMSDEPLOY_MsDeployExceptionFwlink1SiteMessage;
                                 }
                             }
-                            strBuilder.Append(string.Format(System.Globalization.CultureInfo.CurrentCulture,srErrorMessage, provider));
+                            strBuilder.Append(string.Format(CultureInfo.CurrentCulture,srErrorMessage, provider));
                         }
                         else if (index == 1)
                         {
@@ -1701,7 +1659,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                         }
                         else
                         {
-                            System.Diagnostics.Debug.Assert(false, "fwdlink5 and above is not implemented");
+                            Debug.Assert(false, "fwdlink5 and above is not implemented");
                         }
                     }
                 }
@@ -1711,44 +1669,46 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             if (e.InnerException == null)
             {
                 strBuilder.Append(e.Message);
-                Log.LogError(string.Format(System.Globalization.CultureInfo.CurrentCulture,Resources.VSMSDEPLOY_FailedWithException, strBuilder.ToString()));
+                Log.LogError(string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_FailedWithException, strBuilder.ToString()));
             }
             else
             {
                 // Dev10 bug we sometime need better error message to show user what do do
-                System.Exception currentException = e;
+                Exception? currentException = e;
                 while (currentException != null)
                 {
-                    strBuilder.Append(System.Environment.NewLine);
+                    strBuilder.Append(Environment.NewLine);
                     strBuilder.Append(currentException.Message);
                     currentException = currentException.InnerException;
                 }
-                Log.LogError(string.Format(System.Globalization.CultureInfo.CurrentCulture,Resources.VSMSDEPLOY_FailedWithExceptionWithDetail, e.Message, strBuilder.ToString()));
+                Log.LogError(string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_FailedWithExceptionWithDetail, e.Message, strBuilder.ToString()));
             }
-            strBuilder.Append(System.Environment.NewLine);
+            strBuilder.Append(Environment.NewLine);
             strBuilder.Append(e.StackTrace);
             Log.LogMessage(Framework.MessageImportance.Low, strBuilder.ToString());
         }
 
-        public static Generic.IList<Framework.ITaskItem> SortTaskItemsByPriority(Framework.ITaskItem[] taskItems)
+        public static IList<Framework.ITaskItem> SortTaskItemsByPriority(Framework.ITaskItem[]? taskItems)
         {
-            int count = taskItems != null? taskItems.GetLength(0): 0;
-            Generic.SortedList<Generic.KeyValuePair<int, int>, Framework.ITaskItem> sortedList =
-                new System.Collections.Generic.SortedList<System.Collections.Generic.KeyValuePair<int, int>, Microsoft.Build.Framework.ITaskItem>(count, ParameterTaskComparer);
+            int count = taskItems != null ? taskItems.GetLength(0) : 0;
+            SortedList<KeyValuePair<int, int>, Framework.ITaskItem> sortedList = new(count, ParameterTaskComparer);
 
             for (int i = 0; i < count; i++)
             {
-                Framework.ITaskItem iTaskItem = taskItems[i];
-                string priority = iTaskItem.GetMetadata("Priority");
-                int iPriority = string.IsNullOrEmpty(priority)? 0: System.Convert.ToInt32(priority, System.Globalization.CultureInfo.InvariantCulture);
-                sortedList.Add(new System.Collections.Generic.KeyValuePair<int, int>(iPriority, i), iTaskItem);
+                if (taskItems is not null)
+                {
+                    Framework.ITaskItem iTaskItem = taskItems[i];
+                    string priority = iTaskItem.GetMetadata("Priority");
+                    int iPriority = string.IsNullOrEmpty(priority) ? 0 : Convert.ToInt32(priority, CultureInfo.InvariantCulture);
+                    sortedList.Add(new KeyValuePair<int, int>(iPriority, i), iTaskItem);
+                }
             }
             return sortedList.Values;
         }
-        internal class PriorityIndexComparer : Generic.IComparer<Generic.KeyValuePair<int, int>>
+
+        internal class PriorityIndexComparer : IComparer<KeyValuePair<int, int>>
         {
-#region IComparer<KeyValuePair<int,int>> Members
-            public int Compare(System.Collections.Generic.KeyValuePair<int, int> x, System.Collections.Generic.KeyValuePair<int, int> y)
+            public int Compare(KeyValuePair<int, int> x, KeyValuePair<int, int> y)
             {
                 if (x.Key == y.Key)
                 {
@@ -1759,36 +1719,33 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                     return x.Key - y.Key;
                 }
             }
-#endregion
         }
 
-        static public string StripOffTrailingSlashes(string str)
+        public static string StripOffTrailingSlashes(string str)
         {
             if (!string.IsNullOrEmpty(str))
             {
-                while (str.EndsWith("\\", System.StringComparison.Ordinal) || str.EndsWith("/", System.StringComparison.Ordinal))
+                while (str.EndsWith("\\", StringComparison.Ordinal) || str.EndsWith("/", StringComparison.Ordinal))
                     str = str.Substring(0, str.Length - 1);
-             
+
             }
             return str;
         }
 
-        static public string EnsureTrailingSlashes(string rootPath, char slash)
+        public static string EnsureTrailingSlashes(string rootPath, char slash)
         {
-            string directorySeparator = new string(slash, 1);
-            string rootPathWithSlash = string.Concat(rootPath, rootPath.EndsWith(directorySeparator, System.StringComparison.Ordinal) ? string.Empty : directorySeparator);
+            string directorySeparator = new(slash, 1);
+            string rootPathWithSlash = string.Concat(rootPath, rootPath.EndsWith(directorySeparator, StringComparison.Ordinal) ? string.Empty : directorySeparator);
             return rootPathWithSlash;
         }
 
-
-        static public string GetFilePathResolution(string source, string sourceRootPath)
+        public static string? GetFilePathResolution(string? source, string sourceRootPath)
         {
-            if (IO.Path.IsPathRooted(source) || string.IsNullOrEmpty(sourceRootPath))
+            if (source is null || Path.IsPathRooted(source) || string.IsNullOrEmpty(sourceRootPath))
                 return source;
             else
-                return IO.Path.Combine(sourceRootPath, source);
+                return Path.Combine(sourceRootPath, source);
         }
-
 
         /// <summary>
         /// Utility to generate the Ipv6 string address to match with the ServerBinding string
@@ -1796,7 +1753,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         /// </summary>
         /// <param name="iPAddress"></param>
         /// <returns></returns>
-        static internal string GetIPAddressString(System.Net.IPAddress iPAddress)
+        internal static string? GetIPAddressString(System.Net.IPAddress iPAddress)
         {
             if (iPAddress != null)
             {
@@ -1804,7 +1761,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                     return iPAddress.ToString();
                 else if (iPAddress.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
                 {
-                    Text.StringBuilder stringBuilder = MsDeploy.Utility.CleanStringBuilder;
+                    StringBuilder stringBuilder = CleanStringBuilder;
                     stringBuilder.Append("[");
                     stringBuilder.Append(iPAddress.ToString());
                     stringBuilder.Append("]");
@@ -1820,7 +1777,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
         /// <param name="IISBindingIPString"></param>
         /// <param name="iPAddresses"></param>
         /// <returns></returns>
-        static internal bool MatchOneOfIPAddress(string IISBindingIPString, System.Net.IPAddress[] iPAddresses)
+        internal static bool MatchOneOfIPAddress(string IISBindingIPString, System.Net.IPAddress[] iPAddresses)
         {
             if (!string.IsNullOrEmpty(IISBindingIPString))
             {
@@ -1829,19 +1786,19 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
 
                 foreach (System.Net.IPAddress iPAddress in iPAddresses)
                 {
-                    if (string.Compare(GetIPAddressString(iPAddress), IISBindingIPString, System.StringComparison.OrdinalIgnoreCase) == 0)
+                    if (string.Compare(GetIPAddressString(iPAddress), IISBindingIPString, StringComparison.OrdinalIgnoreCase) == 0)
                         return true;
                 }
             }
             return false;
         }
 
-        static internal void SetupMSWebDeployDynamicAssemblies(string strVersionsToTry, Utilities.Task task)
+        internal static void SetupMSWebDeployDynamicAssemblies(string? strVersionsToTry, Task task)
         {
             // Mark the assembly version.
             // System.Version version1_1 = new System.Version("7.1");
-            Generic.Dictionary<string, string> versionsList = new System.Collections.Generic.Dictionary<string,string>();
-            if (!string.IsNullOrEmpty(strVersionsToTry))
+            Dictionary<string, string> versionsList = new();
+            if (strVersionsToTry is not null && strVersionsToTry.Length != 0)
             {
                 foreach (string str in strVersionsToTry.Split(';'))
                 {
@@ -1850,25 +1807,25 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             }
 
             const string MSDeploymentDllFallback = "9.0";
-            versionsList[MSDeploymentDllFallback] = MSDeploymentDllFallback; 
+            versionsList[MSDeploymentDllFallback] = MSDeploymentDllFallback;
 
-            System.Version[] versionArray = versionsList.Values.Select(p => new System.Version(p)).ToArray();
-            System.Array.Sort(versionArray);
+            Version[] versionArray = versionsList.Values.Select(p => new Version(p)).ToArray();
+            Array.Sort(versionArray);
 
-            for (int i = versionArray.GetLength(0) - 1; i >= 0 ; i--)
+            for (int i = versionArray.GetLength(0) - 1; i >= 0; i--)
             {
-                System.Version version = versionArray[i];
+                Version version = versionArray[i];
                 try
                 {
                     MSWebDeploymentAssembly.SetVersion(version);
 
-                    System.Version webDelegationAssemblyVersion = version;
+                    Version webDelegationAssemblyVersion = version;
 #if NET472
                     if (MSWebDeploymentAssembly.DynamicAssembly != null && MSWebDeploymentAssembly.DynamicAssembly.Assembly != null)
                     {
-                        foreach (System.Reflection.AssemblyName assemblyName in MSWebDeploymentAssembly.DynamicAssembly.Assembly.GetReferencedAssemblies())
+                        foreach (AssemblyName assemblyName in MSWebDeploymentAssembly.DynamicAssembly.Assembly.GetReferencedAssemblies())
                         {
-                            if (string.Compare(assemblyName.Name, 0 ,  MSWebDelegationAssembly.AssemblyName, 0, MSWebDelegationAssembly.AssemblyName.Length, System.StringComparison.OrdinalIgnoreCase) == 0)
+                            if (string.Compare(assemblyName.Name, 0 ,  MSWebDelegationAssembly.AssemblyName, 0, MSWebDelegationAssembly.AssemblyName.Length, StringComparison.OrdinalIgnoreCase) == 0)
                             {
                                 webDelegationAssemblyVersion = assemblyName.Version;
                                 break;
@@ -1877,34 +1834,33 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
                     }
 #endif
                     MSWebDelegationAssembly.SetVersion(webDelegationAssemblyVersion);
-                    task.Log.LogMessage(Microsoft.Build.Framework.MessageImportance.Low, string.Format(System.Globalization.CultureInfo.CurrentCulture,Resources.VSMSDEPLOY_MSDEPLOYVERSIONLOAD, task.ToString(), MSWebDeploymentAssembly.DynamicAssembly.AssemblyFullName));
-                    task.Log.LogMessage(Microsoft.Build.Framework.MessageImportance.Low, string.Format(System.Globalization.CultureInfo.CurrentCulture,Resources.VSMSDEPLOY_MSDEPLOYVERSIONLOAD, task.ToString(), MSWebDelegationAssembly.DynamicAssembly.AssemblyFullName));
+                    task.Log.LogMessage(Framework.MessageImportance.Low, string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_MSDEPLOYVERSIONLOAD, task.ToString(), MSWebDeploymentAssembly.DynamicAssembly?.AssemblyFullName));
+                    task.Log.LogMessage(Framework.MessageImportance.Low, string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_MSDEPLOYVERSIONLOAD, task.ToString(), MSWebDelegationAssembly.DynamicAssembly?.AssemblyFullName));
                     return;
                 }
-                catch (System.Exception e)
+                catch (Exception e)
                 {
-                    task.Log.LogMessage(Microsoft.Build.Framework.MessageImportance.Low, string.Format(System.Globalization.CultureInfo.CurrentCulture,Resources.BUILDTASK_FailedToLoadThisVersionMsDeployTryingTheNext, versionArray[i], e.Message));
+                    task.Log.LogMessage(Framework.MessageImportance.Low, string.Format(CultureInfo.CurrentCulture, Resources.BUILDTASK_FailedToLoadThisVersionMsDeployTryingTheNext, versionArray[i], e.Message));
                 }
             }
             // if it not return by now, it is definite a error
-            throw new System.InvalidOperationException(string.Format(System.Globalization.CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_MSDEPLOYASSEMBLYLOAD_FAIL, task.ToString()));
+            throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, Resources.VSMSDEPLOY_MSDEPLOYASSEMBLYLOAD_FAIL, task.ToString()));
         }
 
-
-        static public string EscapeTextForMSBuildVariable(string text)
+        public static string? EscapeTextForMSBuildVariable(string? text)
         {
-            if (!string.IsNullOrEmpty(text) && text.IndexOfAny(@"$%".ToArray()) >= 0 )
+            if (!string.IsNullOrEmpty(text) && text?.IndexOfAny(@"$%".ToArray()) >= 0)
             {
-                System.Text.StringBuilder stringBuilder = new Text.StringBuilder(text.Length *2);
+                StringBuilder stringBuilder = new(text.Length * 2);
                 char[] chars = text.ToCharArray();
                 int i = 0;
-                for (i = 0; i < chars.Count() -2; i++)
+                for (i = 0; i < chars.Count() - 2; i++)
                 {
                     char ch = chars[i];
                     char nextch1 = chars[i + 1];
                     char nextch2 = chars[i + 2];
                     bool fAlreadyHandled = false;
-                    switch(ch)
+                    switch (ch)
                     {
                         case '$':
                             if (nextch1 == '(')
@@ -1933,15 +1889,15 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             return text;
         }
         /// <summary>
-        /// Given a user agant string, it appends :WTE<version> to it if
+        /// Given a user agent string, it appends :WTE<version> to it if
         /// the string is not null.
         /// </summary>
-        public static string GetFullUserAgentString(string userAgent)
+        public static string? GetFullUserAgentString(string? userAgent)
         {
 #if NET472
             if(string.IsNullOrEmpty(userAgent))
                 return null;
-            try 
+            try
             {
                 object[] o = typeof(Utility).Assembly.GetCustomAttributes(typeof(AssemblyFileVersionAttribute), false);
                 if (o.Length > 0 && o[0] is AssemblyFileVersionAttribute)
@@ -1956,9 +1912,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
 #endif
             return userAgent;
         }
-
     }
-
 
     internal static class ItemFilter
     {
@@ -1971,7 +1925,6 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
 #else
             return (string.Compare(item.GetMetadata(metadataName), metadataValue, fIgnoreCase) == 0);
 #endif
-
         }
 
         public static bool ItemFilterExcludeTrue(Framework.ITaskItem iTaskItem)
@@ -1979,8 +1932,5 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
             string metadataName = PipelineMetadata.Exclude.ToString();
             return ItemFilterPipelineMetadata(iTaskItem, metadataName, "true", true);
         }
-
     }
-
-
 }

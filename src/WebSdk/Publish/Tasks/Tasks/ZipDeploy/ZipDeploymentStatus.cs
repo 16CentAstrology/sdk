@@ -1,16 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using System.Net;
 using System.Net.Http;
-using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Build.Utilities;
-using Microsoft.NET.Sdk.Publish.Tasks.MsDeploy;
 using Microsoft.NET.Sdk.Publish.Tasks.Properties;
-using Task = System.Threading.Tasks.Task;
 
 namespace Microsoft.NET.Sdk.Publish.Tasks.ZipDeploy
 {
@@ -34,7 +29,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.ZipDeploy
             _logMessages = logMessages;
         }
 
-        public async Task<DeploymentResponse> PollDeploymentStatusAsync(string deploymentUrl, string userName, string password)
+        public async Task<DeploymentResponse?> PollDeploymentStatusAsync(string deploymentUrl, string? userName, string? password)
         {
             var tokenSource = new CancellationTokenSource(TimeSpan.FromMinutes(MaxMinutesToWait));
 
@@ -43,7 +38,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.ZipDeploy
                 _log.LogMessage(Resources.ZIPDEPLOY_DeploymentStatusPolling);
             }
 
-            DeploymentResponse deploymentResponse = null;
+            DeploymentResponse? deploymentResponse = null;
             DeployStatus? deployStatus = DeployStatus.Pending;
 
             while (!tokenSource.IsCancellationRequested
@@ -70,35 +65,35 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.ZipDeploy
                     return deploymentResponse;
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(StatusRefreshDelaySeconds));
+                await System.Threading.Tasks.Task.Delay(TimeSpan.FromSeconds(StatusRefreshDelaySeconds));
             }
 
             return deploymentResponse ?? new() { Status = DeployStatus.Unknown };
         }
 
-        private async Task<T> InvokeGetRequestWithRetryAsync<T>(string url, string userName, string password, int retryCount, TimeSpan retryDelay, CancellationTokenSource cts)
+        private async Task<T?> InvokeGetRequestWithRetryAsync<T>(string url, string? userName, string? password, int retryCount, TimeSpan retryDelay, CancellationTokenSource cts)
         {
-            IHttpResponse response = null;
+            IHttpResponse? response = null;
             await RetryAsync(async () =>
             {
-                response = await _client.GetWithBasicAuthAsync(new Uri(url, UriKind.RelativeOrAbsolute), userName, password, _userAgent, cts.Token);
+                response = await _client.GetRequestAsync(new Uri(url, UriKind.RelativeOrAbsolute), userName, password, _userAgent, cts.Token);
             }, retryCount, retryDelay);
 
-            if (response.StatusCode != HttpStatusCode.OK && response.StatusCode != HttpStatusCode.Accepted)
+            if (response?.StatusCode != HttpStatusCode.OK && response?.StatusCode != HttpStatusCode.Accepted)
             {
-                return default(T);
+                return default;
             }
-            else
+
+            using var stream = await response.GetResponseBodyAsync();
+            if (stream is null)
             {
-                using (var stream = await response.GetResponseBodyAsync())
-                {
-                    var reader = new StreamReader(stream, Encoding.UTF8);
-                    return FromJson<T>(reader.ReadToEnd());
-                }
+                return default;
             }
+            var reader = new StreamReader(stream, Encoding.UTF8);
+            return FromJson<T>(reader.ReadToEnd());
         }
 
-        private async Task RetryAsync(Func<Task> func, int retryCount, TimeSpan retryDelay)
+        private async System.Threading.Tasks.Task RetryAsync(Func<System.Threading.Tasks.Task> func, int retryCount, TimeSpan retryDelay)
         {
             while (true)
             {
@@ -116,11 +111,11 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.ZipDeploy
                     retryCount--;
                 }
 
-                await Task.Delay(retryDelay);
+                await System.Threading.Tasks.Task.Delay(retryDelay);
             }
         }
 
-        private static T FromJson<T>(string jsonString)
+        private static T? FromJson<T>(string jsonString)
         {
             return JsonSerializer.Deserialize<T>(jsonString,
                 new JsonSerializerOptions

@@ -1,14 +1,8 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using NuGet.Frameworks;
 
 namespace Microsoft.DotNet.Cli.Utils
 {
@@ -16,25 +10,25 @@ namespace Microsoft.DotNet.Cli.Utils
     {
         private readonly Process _process;
 
-        private StreamForwarder _stdOut;
+        private StreamForwarder? _stdOut;
 
-        private StreamForwarder _stdErr;
+        private StreamForwarder? _stdErr;
 
         private bool _running = false;
 
         private bool _trimTrailingNewlines = false;
 
-        public Command(Process process, bool trimtrailingNewlines = false)
+        public Command(Process? process, bool trimTrailingNewlines = false)
         {
-            _trimTrailingNewlines = trimtrailingNewlines;
+            _trimTrailingNewlines = trimTrailingNewlines;
             _process = process ?? throw new ArgumentNullException(nameof(process));
         }
 
         public CommandResult Execute()
         {
-            return Execute(_ => { });
+            return Execute(null);
         }
-        public CommandResult Execute(Action<Process> processStarted)
+        public CommandResult Execute(Action<Process>? processStarted)
         {
             Reporter.Verbose.WriteLine(string.Format(
                 LocalizableStrings.RunningFileNameArguments,
@@ -47,11 +41,14 @@ namespace Microsoft.DotNet.Cli.Utils
 
             _process.EnableRaisingEvents = true;
 
-#if DEBUG
-            var sw = Stopwatch.StartNew();
-            
-            Reporter.Verbose.WriteLine($"> {FormatProcessInfo(_process.StartInfo)}".White());
-#endif
+            Stopwatch? sw = null;
+            if (CommandLoggingContext.IsVerbose)
+            {
+                sw = Stopwatch.StartNew();
+
+                Reporter.Verbose.WriteLine($"> {FormatProcessInfo(_process.StartInfo)}".White());
+            }
+
             using (var reaper = new ProcessReaper(_process))
             {
                 _process.Start();
@@ -75,21 +72,23 @@ namespace Microsoft.DotNet.Cli.Utils
 
             var exitCode = _process.ExitCode;
 
-#if DEBUG
-            var message = string.Format(
-                LocalizableStrings.ProcessExitedWithCode,
-                FormatProcessInfo(_process.StartInfo),
-                exitCode,
-                sw.ElapsedMilliseconds);
-            if (exitCode == 0)
+            if (CommandLoggingContext.IsVerbose)
             {
-                Reporter.Verbose.WriteLine(message.Green());
+                Debug.Assert(sw is not null);
+                var message = string.Format(
+                    LocalizableStrings.ProcessExitedWithCode,
+                    FormatProcessInfo(_process.StartInfo),
+                    exitCode,
+                    sw.ElapsedMilliseconds);
+                if (exitCode == 0)
+                {
+                    Reporter.Verbose.WriteLine(message.Green());
+                }
+                else
+                {
+                    Reporter.Verbose.WriteLine(message.Red().Bold());
+                }
             }
-            else
-            {
-                Reporter.Verbose.WriteLine(message.Red().Bold());
-            }
-#endif
 
             return new CommandResult(
                 _process.StartInfo,
@@ -98,13 +97,13 @@ namespace Microsoft.DotNet.Cli.Utils
                 _stdErr?.CapturedOutput);
         }
 
-        public ICommand WorkingDirectory(string projectDirectory)
+        public ICommand WorkingDirectory(string? projectDirectory)
         {
             _process.StartInfo.WorkingDirectory = projectDirectory;
             return this;
         }
 
-        public ICommand EnvironmentVariable(string name, string value)
+        public ICommand EnvironmentVariable(string name, string? value)
         {
             _process.StartInfo.Environment[name] = value;
             return this;
@@ -114,7 +113,7 @@ namespace Microsoft.DotNet.Cli.Utils
         {
             ThrowIfRunning();
             EnsureStdOut();
-            _stdOut.Capture(_trimTrailingNewlines);
+            _stdOut?.Capture(_trimTrailingNewlines);
             return this;
         }
 
@@ -122,11 +121,11 @@ namespace Microsoft.DotNet.Cli.Utils
         {
             ThrowIfRunning();
             EnsureStdErr();
-            _stdErr.Capture(_trimTrailingNewlines);
+            _stdErr?.Capture(_trimTrailingNewlines);
             return this;
         }
 
-        public ICommand ForwardStdOut(TextWriter to = null, bool onlyIfVerbose = false, bool ansiPassThrough = true)
+        public ICommand ForwardStdOut(TextWriter? to = null, bool onlyIfVerbose = false, bool ansiPassThrough = true)
         {
             ThrowIfRunning();
             if (!onlyIfVerbose || CommandLoggingContext.IsVerbose)
@@ -135,18 +134,18 @@ namespace Microsoft.DotNet.Cli.Utils
 
                 if (to == null)
                 {
-                    _stdOut.ForwardTo(writeLine: Reporter.Output.WriteLine);
+                    _stdOut?.ForwardTo(writeLine: Reporter.Output.WriteLine);
                     EnvironmentVariable(CommandLoggingContext.Variables.AnsiPassThru, ansiPassThrough.ToString());
                 }
                 else
                 {
-                    _stdOut.ForwardTo(writeLine: to.WriteLine);
+                    _stdOut?.ForwardTo(writeLine: to.WriteLine);
                 }
             }
             return this;
         }
 
-        public ICommand ForwardStdErr(TextWriter to = null, bool onlyIfVerbose = false, bool ansiPassThrough = true)
+        public ICommand ForwardStdErr(TextWriter? to = null, bool onlyIfVerbose = false, bool ansiPassThrough = true)
         {
             ThrowIfRunning();
             if (!onlyIfVerbose || CommandLoggingContext.IsVerbose)
@@ -155,12 +154,12 @@ namespace Microsoft.DotNet.Cli.Utils
 
                 if (to == null)
                 {
-                    _stdErr.ForwardTo(writeLine: Reporter.Error.WriteLine);
+                    _stdErr?.ForwardTo(writeLine: Reporter.Error.WriteLine);
                     EnvironmentVariable(CommandLoggingContext.Variables.AnsiPassThru, ansiPassThrough.ToString());
                 }
                 else
                 {
-                    _stdErr.ForwardTo(writeLine: to.WriteLine);
+                    _stdErr?.ForwardTo(writeLine: to.WriteLine);
                 }
             }
             return this;
@@ -171,7 +170,7 @@ namespace Microsoft.DotNet.Cli.Utils
             ThrowIfRunning();
             EnsureStdOut();
 
-            _stdOut.ForwardTo(writeLine: handler);
+            _stdOut?.ForwardTo(writeLine: handler);
             return this;
         }
 
@@ -180,7 +179,7 @@ namespace Microsoft.DotNet.Cli.Utils
             ThrowIfRunning();
             EnsureStdErr();
 
-            _stdErr.ForwardTo(writeLine: handler);
+            _stdErr?.ForwardTo(writeLine: handler);
             return this;
         }
 
@@ -216,7 +215,7 @@ namespace Microsoft.DotNet.Cli.Utils
             _process.StartInfo.RedirectStandardError = true;
         }
 
-        private void ThrowIfRunning([CallerMemberName] string memberName = null)
+        private void ThrowIfRunning([CallerMemberName] string? memberName = null)
         {
             if (_running)
             {

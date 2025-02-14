@@ -22,14 +22,44 @@
         <target state="translated">Impossibile utilizzare contemporaneamente le opzioni {0} e {1}. Se si esegue l'installazione da un file di rollback, rimuovere {0}. In caso contrario, rimuovere {1}</target>
         <note />
       </trans-unit>
+      <trans-unit id="CannotCombineSkipManifestAndVersion">
+        <source>Cannot use the {0} and {1} options together.  Remove one of the options.</source>
+        <target state="translated">Impossibile utilizzare contemporaneamente le opzioni {0} e {1}.  Rimuove una delle opzioni.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="CannotSpecifyVersionAndWorkloadIdsByComponent">
+        <source>Cannot specify a workload version using the --version option while also specifying versions to install using workload@version syntax.</source>
+        <target state="translated">Non è possibile specificare una versione del carico di lavoro usando l'opzione --version specificando anche le versioni da installare con workload@version sintassi.</target>
+        <note>{Locked="--version"}</note>
+      </trans-unit>
+      <trans-unit id="CannotSpecifyVersionOnCommandLineAndInGlobalJson">
+        <source>Cannot specify a particular workload version on the command line via --version or --from-history when there is already a version specified in global.json file {0}. To update the globally installed workload version, run the command outside of the path containing that global.json file or update the version specified in the global.json file and run "dotnet workload update."</source>
+        <target state="translated">Impossibile specificare una determinata versione del carico di lavoro nella riga di comando tramite --version o --from-history quando è già specificata una versione nel file global.json {0}. Per aggiornare la versione del carico di lavoro installata a livello globale, eseguire il comando all'esterno del percorso contenente tale file global.json o aggiornare la versione specificata nel file di global.json ed eseguire "dotnet workload update".</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="CannotUseSkipManifestWithGlobalJsonWorkloadVersion">
+        <source>Cannot use the {0} option when workload version is specified in global.json.  Remove the {0} option, or remove the 'workloadVersion' element from {1}.</source>
+        <target state="translated">Non è possibile usare l'opzione {0} quando la versione del carico di lavoro è specificata in global.json.  Rimuovere l'opzione {0} o rimuovere l'elemento 'workloadVersion' da {1}.</target>
+        <note>{Locked="workloadVersion"} Locked={"global.json"}</note>
+      </trans-unit>
       <trans-unit id="CheckForUpdatedWorkloadManifests">
-        <source>Checking for updated workload manifests.</source>
-        <target state="translated">Verifica della disponibilità di manifesti del carico di lavoro aggiornati.</target>
+        <source>Checking for updated workload version.</source>
+        <target state="translated">Verifica della disponibilità di versioni dei carichi di lavori aggiornate.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="DeletingWorkloadManifest">
+        <source>Uninstalling workload manifest {0} version {1}...</source>
+        <target state="translated">Disinstallazione del manifesto del carico di lavoro {0} versione {1} in corso...</target>
         <note />
       </trans-unit>
       <trans-unit id="DeletingWorkloadPack">
-        <source>Uninstalling workload pack {0} version {1}…</source>
-        <target state="translated">Disinstallazione in corso del pacchetto del carico di lavoro {0}, versione {1}...</target>
+        <source>Uninstalling workload pack {0} version {1}...</source>
+        <target state="translated">Disinstallazione del pacchetto del carico di lavoro {0} versione {1}in corso...</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="DeletingWorkloadSet">
+        <source>Deleting workload version {0}.</source>
+        <target state="translated">Eliminazione della versione del carico di lavoro {0}.</target>
         <note />
       </trans-unit>
       <trans-unit id="DownloadToCacheOptionArgumentName">
@@ -43,8 +73,8 @@
         <note />
       </trans-unit>
       <trans-unit id="DownloadingPackToCacheMessage">
-        <source>Downloading pack {0} version {1} to offline cache {2}…</source>
-        <target state="translated">Download in corso del pacchetto {0}, versione {1}, nella cache offline {2}...</target>
+        <source>Downloading pack {0} version {1} to offline cache {2}...</source>
+        <target state="translated">Download del pacchetto {0}, versione {1}, nella cache offline {2}...</target>
         <note />
       </trans-unit>
       <trans-unit id="ExpectedSingleManifest">
@@ -70,6 +100,11 @@
       <trans-unit id="FailedToInstallWorkloadManifest">
         <source>Failed to install manifest {0} version {1}: {2}.</source>
         <target state="translated">Non è stato possibile installare il manifesto {0}, versione {1}: {2}.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="FailedToInstallWorkloadSet">
+        <source>Failed to install workload version {0}: {1}</source>
+        <target state="translated">Non è stato possibile installare la versione del carico di lavoro {0}: {1}</target>
         <note />
       </trans-unit>
       <trans-unit id="FromCacheOptionArgumentName">
@@ -102,11 +137,6 @@
         <target state="translated">Consenti i manifesti del carico di lavoro preliminari.</target>
         <note />
       </trans-unit>
-      <trans-unit id="IncompatibleManifests">
-        <source>The current SDK isn't compatible with workload manifests of SDK version {0}.</source>
-        <target state="translated">L'SDK corrente non è compatibile con i manifesti del carico di lavoro della versione SDK {0}.</target>
-        <note />
-      </trans-unit>
       <trans-unit id="InstallationSucceeded">
         <source>Successfully installed workload(s) {0}.</source>
         <target state="translated">Carico di lavoro installati correttamente {0}.</target>
@@ -118,8 +148,8 @@
         <note />
       </trans-unit>
       <trans-unit id="InstallingWorkloadManifest">
-        <source>Installing workload manifest {0} version {1}…</source>
-        <target state="translated">Installazione in corso del manifesto del carico di lavoro {0}, versione {1}...</target>
+        <source>Installing workload manifest {0} version {1}...</source>
+        <target state="translated">Installazione del manifesto del carico di lavoro {0} versione {1} in corso...</target>
         <note />
       </trans-unit>
       <trans-unit id="InsufficientPrivilegeToStartServer">
@@ -152,11 +182,6 @@
         <target state="translated">Framework di destinazione per cui installare il carico di lavoro.</target>
         <note />
       </trans-unit>
-      <trans-unit id="ManifestDoesNotExist">
-        <source>No manifest with ID {0} exists.</source>
-        <target state="translated">Non esiste alcun manifesto con ID {0}.</target>
-        <note />
-      </trans-unit>
       <trans-unit id="ManifestMsiNotFoundInNuGetPackage">
         <source>Manifest MSI not found in NuGet package {0}</source>
         <target state="translated">L'identità del servizio gestita del manifesto non è stata trovata nel pacchetto NuGet {0}</target>
@@ -182,9 +207,9 @@
         <target state="translated">Rimozione di {0} </target>
         <note />
       </trans-unit>
-      <trans-unit id="NoManifestsExistForFeatureBand">
-        <source>No manifests exist for SDK version {0}.</source>
-        <target state="translated">Non esistono manifesti per la versione SDK {0}.</target>
+      <trans-unit id="NewWorkloadSet">
+        <source>Installing workload version {0}.</source>
+        <target state="translated">Installazione del carico di lavoro {0}.</target>
         <note />
       </trans-unit>
       <trans-unit id="NoTrustWithParentPID">
@@ -198,8 +223,8 @@
         <note />
       </trans-unit>
       <trans-unit id="PendingReboot">
-        <source>The machine has a pending reboot. Installation will continue, but you may need to restart.</source>
-        <target state="translated">Il computer ha un riavvio in sospeso. L'installazione continuerà, ma potrebbe essere necessario riavviare.</target>
+        <source>The machine has a pending reboot. The workload operation will continue, but you may need to restart.</source>
+        <target state="translated">Il computer ha un riavvio in sospeso. L'operazione del carico di lavoro continuerà, ma potrebbe essere necessario un riavvio.</target>
         <note />
       </trans-unit>
       <trans-unit id="ResolvingPackageUrls">
@@ -231,6 +256,11 @@
         <source>Rolling back pack {0} installation...</source>
         <target state="translated">Rollback dell'installazione del pacchetto {0} in corso...</target>
         <note />
+      </trans-unit>
+      <trans-unit id="SdkVersionOptionNotSupported">
+        <source>The --sdk-version option is no longer supported for this command.</source>
+        <target state="translated">L'opzione --sdk-version non è più supportata per questo comando.</target>
+        <note>{Locked="--sdk-version"}</note>
       </trans-unit>
       <trans-unit id="SkipManifestUpdateOptionDescription">
         <source>Skip updating the workload manifests.</source>
@@ -275,6 +305,11 @@
       <trans-unit id="PrintDownloadLinkOnlyDescription">
         <source>Only print the list of links to download without downloading.</source>
         <target state="translated">Stampa solo l'elenco dei collegamenti da scaricare senza scaricarlo.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="UpdatedWorkloadMode">
+        <source>Successfully updated workload install mode to use {0}.</source>
+        <target state="translated">La modalità di installazione del carico di lavoro è stata aggiornata per l'uso di {0}.</target>
         <note />
       </trans-unit>
       <trans-unit id="UsingCacheForPackInstall">
@@ -360,6 +395,11 @@
       <trans-unit id="WorkloadPathOptionName">
         <source>PATH</source>
         <target state="translated">PERCORSO</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="WorkloadSetVersionOptionDescription">
+        <source>A workload version to display or one or more workloads and their versions joined by the '@' character.</source>
+        <target state="translated">Versione del carico di lavoro da visualizzare o da uno o più carichi di lavoro e relative versioni aggiunte dal carattere '@'.</target>
         <note />
       </trans-unit>
       <trans-unit id="WorkloadUpdatesAvailable">

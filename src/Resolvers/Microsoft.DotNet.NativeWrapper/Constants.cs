@@ -1,7 +1,5 @@
-// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System.Runtime.InteropServices;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 namespace Microsoft.DotNet.NativeWrapper
 {
@@ -9,6 +7,7 @@ namespace Microsoft.DotNet.NativeWrapper
     {
         public const string HostFxr = "hostfxr";
         public const string DotNet = "dotnet";
+        public const string DotNetExe = "dotnet.exe";
         public const string PATH = "PATH";
         public const string DOTNET_MSBUILD_SDK_RESOLVER_CLI_DIR = "DOTNET_MSBUILD_SDK_RESOLVER_CLI_DIR";
 

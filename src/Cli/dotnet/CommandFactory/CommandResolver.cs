@@ -1,8 +1,6 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Collections.Generic;
-using System.IO;
 using Microsoft.DotNet.Cli.Utils;
 using NuGet.Frameworks;
 
@@ -35,20 +33,21 @@ namespace Microsoft.DotNet.CommandFactory
             NuGetFramework framework = null,
             string configuration = Constants.DefaultConfiguration,
             string outputPath = null,
-            string applicationName = null)
+            string applicationName = null,
+            string currentWorkingDirectory = null)
         {
             var commandResolverArgs = new CommandResolverArguments
             {
                 CommandName = commandName,
                 CommandArguments = args,
                 Framework = framework,
-                ProjectDirectory = Directory.GetCurrentDirectory(),
+                ProjectDirectory = currentWorkingDirectory ?? Directory.GetCurrentDirectory(),
                 Configuration = configuration,
                 OutputPath = outputPath,
                 ApplicationName = applicationName
             };
 
-            var defaultCommandResolver = commandResolverPolicy.CreateCommandResolver();
+            var defaultCommandResolver = commandResolverPolicy.CreateCommandResolver(currentWorkingDirectory);
 
             return defaultCommandResolver.Resolve(commandResolverArgs);
         }

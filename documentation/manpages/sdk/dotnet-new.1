@@ -15,7 +15,7 @@
 . ftr VB CB
 . ftr VBI CBI
 .\}
-.TH "dotnet-new" "1" "2022-11-08" "" ".NET Documentation"
+.TH "dotnet-new" "1" "2024-10-02" "" ".NET Documentation"
 .hy
 .SH dotnet new <TEMPLATE>
 .PP
@@ -28,7 +28,7 @@ dotnet-new - Creates a new project, configuration file, or solution based on the
 .nf
 \f[C]
 dotnet new <TEMPLATE> [--dry-run] [--force] [-lang|--language {\[dq]C#\[dq]|\[dq]F#\[dq]|VB}]
-    [-n|--name <OUTPUT_NAME>] [--no-update-check] 
+    [-n|--name <OUTPUT_NAME>] [-f|--framework <FRAMEWORK>] [--no-update-check]
     [-o|--output <OUTPUT_DIRECTORY>] [--project <PROJECT_PATH>]
     [-d|--diagnostics] [--verbosity <LEVEL>] [Template options]
 
@@ -46,7 +46,7 @@ The command calls the template engine (https://github.com/dotnet/templating) to 
 .PP
 Starting with the .NET 7 SDK, the \f[V]dotnet new\f[R] syntax has changed:
 .IP \[bu] 2
-The \f[V]--list\f[R], \f[V]--search\f[R], \f[V]--install\f[R], and \f[V]--uninstall\f[R] options became \f[V]list\f[R], \f[V]search\f[R], \f[V]install\f[R] and \f[V]uninstall\f[R] subcommands.
+The \f[V]--list\f[R], \f[V]--search\f[R], \f[V]--install\f[R], and \f[V]--uninstall\f[R] options became \f[V]list\f[R], \f[V]search\f[R], \f[V]install\f[R], and \f[V]uninstall\f[R] subcommands.
 .IP \[bu] 2
 The \f[V]--update-apply\f[R] option became the \f[V]update\f[R] subcommand.
 .IP \[bu] 2
@@ -90,11 +90,11 @@ If there\[cq]s a newer version of the template available.
 In this case, the project or artifact is created but the CLI warns you about an updated version of the template.
 .PP
 Starting with .NET SDK 5.0.300, the \f[V]search\f[R] command should be used to search for templates in NuGet.org.
+.RE
 .PP
 The following table shows the templates that come pre-installed with the .NET SDK.
 The default language for the template is shown inside the brackets.
 Click on the short name link to see the specific template options.
-.RE
 .PP
 .TS
 tab(@);
@@ -299,24 +299,24 @@ T}@T{
 2.0
 T}
 T{
-Blazor Server App
+Blazor Web App
 T}@T{
-\f[V]blazorserver\f[R]
+\f[V]blazor\f[R]
 T}@T{
 [C#]
 T}@T{
 Web/Blazor
 T}@T{
-3.0
+8.0.100
 T}
 T{
-Blazor WebAssembly App
+Blazor WebAssembly Standalone App
 T}@T{
 \f[V]blazorwasm\f[R]
 T}@T{
 [C#]
 T}@T{
-Web/Blazor/WebAssembly
+Web/Blazor/WebAssembly/PWA
 T}@T{
 3.1.300
 T}
@@ -354,39 +354,6 @@ T}@T{
 2.2, 2.0
 T}
 T{
-ASP.NET Core with Angular
-T}@T{
-\f[V]angular\f[R]
-T}@T{
-[C#]
-T}@T{
-Web/MVC/SPA
-T}@T{
-2.0
-T}
-T{
-ASP.NET Core with React.js
-T}@T{
-\f[V]react\f[R]
-T}@T{
-[C#]
-T}@T{
-Web/MVC/SPA
-T}@T{
-2.0
-T}
-T{
-ASP.NET Core with React.js and Redux
-T}@T{
-\f[V]reactredux\f[R]
-T}@T{
-[C#]
-T}@T{
-Web/MVC/SPA
-T}@T{
-2.0
-T}
-T{
 Razor Class Library
 T}@T{
 \f[V]razorclasslib\f[R]
@@ -404,9 +371,31 @@ T}@T{
 T}@T{
 [C#], F#
 T}@T{
-Web/WebAPI
+Web/Web API/API/Service/WebAPI
 T}@T{
 1.0
+T}
+T{
+ASP.NET Core API
+T}@T{
+\f[V]webapiaot\f[R]
+T}@T{
+[C#]
+T}@T{
+Web/Web API/API/Service
+T}@T{
+8.0
+T}
+T{
+ASP.NET Core API controller
+T}@T{
+\f[V]apicontroller\f[R]
+T}@T{
+[C#]
+T}@T{
+Web/ASP.NET
+T}@T{
+8.0
 T}
 T{
 ASP.NET Core gRPC Service
@@ -500,6 +489,81 @@ T}@T{
 6.0
 T}
 .TE
+.PP
+The following table shows templates that have been discontinued and no longer come pre-installed with the .NET SDK.
+Click on the short name link to see the specific template options.
+.PP
+.TS
+tab(@);
+l l l l l.
+T{
+Templates
+T}@T{
+Short name
+T}@T{
+Language
+T}@T{
+Tags
+T}@T{
+Discontinued since
+T}
+_
+T{
+ASP.NET Core with Angular
+T}@T{
+\f[V]angular\f[R]
+T}@T{
+[C#]
+T}@T{
+Web/MVC/SPA
+T}@T{
+8.0
+T}
+T{
+ASP.NET Core with React.js
+T}@T{
+\f[V]react\f[R]
+T}@T{
+[C#]
+T}@T{
+Web/MVC/SPA
+T}@T{
+8.0
+T}
+T{
+Blazor Server App
+T}@T{
+\f[V]blazorserver\f[R]
+T}@T{
+[C#]
+T}@T{
+Web/Blazor
+T}@T{
+8.0
+T}
+T{
+Blazor Server App Empty
+T}@T{
+\f[V]blazorserver-empty\f[R]
+T}@T{
+[C#]
+T}@T{
+Web/Blazor
+T}@T{
+8.0
+T}
+T{
+Blazor WebAssembly App Empty
+T}@T{
+\f[V]blazorwasm-empty\f[R]
+T}@T{
+[C#]
+T}@T{
+Web/Blazor/WebAssembly
+T}@T{
+8.0
+T}
+.TE
 .SH OPTIONS
 .IP \[bu] 2
 \f[B]\f[VB]--dry-run\f[B]\f[R]
@@ -543,6 +607,15 @@ For example, \f[V]dotnet new console -lang \[dq]F#\[dq]\f[R].
 .PP
 The name for the created output.
 If no name is specified, the name of the current directory is used.
+.RE
+.IP \[bu] 2
+\f[B]\f[VB]-f|--framework <FRAMEWORK>\f[B]\f[R]
+.RS 2
+.PP
+Specifies the target framework.
+It expects a target framework moniker (TFM).
+Examples: \[lq]net6.0\[rq], \[lq]net7.0-macos\[rq].
+This value will be reflected in the project file.
 .RE
 .IP \[bu] 2
 \f[B]\f[VB]-no-update-check\f[B]\f[R]
@@ -641,12 +714,12 @@ dotnet new xunit
 .fi
 .RE
 .IP \[bu] 2
-Create a \f[I]global.json\f[R] in the current directory setting the SDK version to 3.1.101:
+Create a \f[I]global.json\f[R] in the current directory setting the SDK version to 8.0.101:
 .RS 2
 .IP
 .nf
 \f[C]
-dotnet new globaljson --sdk-version 3.1.101
+dotnet new globaljson --sdk-version 8.0.101 --roll-forward latestFeature
 \f[R]
 .fi
 .RE

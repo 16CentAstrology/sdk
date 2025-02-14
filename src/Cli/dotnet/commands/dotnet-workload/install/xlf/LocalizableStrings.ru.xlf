@@ -22,14 +22,44 @@
         <target state="translated">Невозможно использовать параметры {0} и {1} одновременно. При установке из файла отката удалите {0}, в противном случае удалите {1}.</target>
         <note />
       </trans-unit>
+      <trans-unit id="CannotCombineSkipManifestAndVersion">
+        <source>Cannot use the {0} and {1} options together.  Remove one of the options.</source>
+        <target state="translated">Невозможно использовать параметры {0} и {1} одновременно.  Удалите один из параметров.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="CannotSpecifyVersionAndWorkloadIdsByComponent">
+        <source>Cannot specify a workload version using the --version option while also specifying versions to install using workload@version syntax.</source>
+        <target state="translated">Невозможно указать версию рабочей нагрузки с помощью параметра --version при указании версий для установки с workload@version синтаксиса.</target>
+        <note>{Locked="--version"}</note>
+      </trans-unit>
+      <trans-unit id="CannotSpecifyVersionOnCommandLineAndInGlobalJson">
+        <source>Cannot specify a particular workload version on the command line via --version or --from-history when there is already a version specified in global.json file {0}. To update the globally installed workload version, run the command outside of the path containing that global.json file or update the version specified in the global.json file and run "dotnet workload update."</source>
+        <target state="translated">Невозможно указать конкретную версию рабочей нагрузки в командной строке с помощью --version или --from-history, если в файле global.json уже указана версия {0}. Чтобы обновить глобально установленную версию рабочей нагрузки, выполните команду вне пути, содержащего этот файл global.json, либо измените версию в файле global.json и выполните команду "dotnet workload update".</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="CannotUseSkipManifestWithGlobalJsonWorkloadVersion">
+        <source>Cannot use the {0} option when workload version is specified in global.json.  Remove the {0} option, or remove the 'workloadVersion' element from {1}.</source>
+        <target state="translated">Невозможно использовать параметр {0}, если версия рабочей нагрузки указана в файле global.json.  Удалите параметр {0} или удалите элемент "workloadVersion" из {1}.</target>
+        <note>{Locked="workloadVersion"} Locked={"global.json"}</note>
+      </trans-unit>
       <trans-unit id="CheckForUpdatedWorkloadManifests">
-        <source>Checking for updated workload manifests.</source>
-        <target state="translated">Проверка обновленных манифестов рабочей нагрузки.</target>
+        <source>Checking for updated workload version.</source>
+        <target state="translated">Проверка обновленной версии рабочей нагрузки.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="DeletingWorkloadManifest">
+        <source>Uninstalling workload manifest {0} version {1}...</source>
+        <target state="translated">Удаление манифеста рабочей нагрузки {0} версии {1}...</target>
         <note />
       </trans-unit>
       <trans-unit id="DeletingWorkloadPack">
-        <source>Uninstalling workload pack {0} version {1}…</source>
+        <source>Uninstalling workload pack {0} version {1}...</source>
         <target state="translated">Идет удаление пакета рабочих нагрузок {0} версии {1}...</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="DeletingWorkloadSet">
+        <source>Deleting workload version {0}.</source>
+        <target state="translated">Удаление версии рабочей нагрузки {0}.</target>
         <note />
       </trans-unit>
       <trans-unit id="DownloadToCacheOptionArgumentName">
@@ -43,7 +73,7 @@
         <note />
       </trans-unit>
       <trans-unit id="DownloadingPackToCacheMessage">
-        <source>Downloading pack {0} version {1} to offline cache {2}…</source>
+        <source>Downloading pack {0} version {1} to offline cache {2}...</source>
         <target state="translated">Загрузка пакета {0} версии {1} в автономный кэш {2}...</target>
         <note />
       </trans-unit>
@@ -70,6 +100,11 @@
       <trans-unit id="FailedToInstallWorkloadManifest">
         <source>Failed to install manifest {0} version {1}: {2}.</source>
         <target state="translated">Не удалось установить манифест {0} версии {1}: {2}.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="FailedToInstallWorkloadSet">
+        <source>Failed to install workload version {0}: {1}</source>
+        <target state="translated">Не удалось установить версию рабочей нагрузки {0}: {1}</target>
         <note />
       </trans-unit>
       <trans-unit id="FromCacheOptionArgumentName">
@@ -102,11 +137,6 @@
         <target state="translated">Разрешить предварительные манифесты рабочей нагрузки.</target>
         <note />
       </trans-unit>
-      <trans-unit id="IncompatibleManifests">
-        <source>The current SDK isn't compatible with workload manifests of SDK version {0}.</source>
-        <target state="translated">Текущий пакет SDK несовместим с манифестами рабочей нагрузки SDK версии {0}.</target>
-        <note />
-      </trans-unit>
       <trans-unit id="InstallationSucceeded">
         <source>Successfully installed workload(s) {0}.</source>
         <target state="translated">Рабочие нагрузки {0} установлены.</target>
@@ -118,7 +148,7 @@
         <note />
       </trans-unit>
       <trans-unit id="InstallingWorkloadManifest">
-        <source>Installing workload manifest {0} version {1}…</source>
+        <source>Installing workload manifest {0} version {1}...</source>
         <target state="translated">Установка манифеста рабочей нагрузки {0} версии {1}...</target>
         <note />
       </trans-unit>
@@ -152,11 +182,6 @@
         <target state="translated">Целевая платформа для установки рабочей нагрузки.</target>
         <note />
       </trans-unit>
-      <trans-unit id="ManifestDoesNotExist">
-        <source>No manifest with ID {0} exists.</source>
-        <target state="translated">Манифест с идентификатором {0} не существует.</target>
-        <note />
-      </trans-unit>
       <trans-unit id="ManifestMsiNotFoundInNuGetPackage">
         <source>Manifest MSI not found in NuGet package {0}</source>
         <target state="translated">MSI манифеста не найден в пакете NuGet {0}</target>
@@ -182,9 +207,9 @@
         <target state="translated">Идет удаление {0} </target>
         <note />
       </trans-unit>
-      <trans-unit id="NoManifestsExistForFeatureBand">
-        <source>No manifests exist for SDK version {0}.</source>
-        <target state="translated">Для SDK версии {0} не существует манифестов.</target>
+      <trans-unit id="NewWorkloadSet">
+        <source>Installing workload version {0}.</source>
+        <target state="translated">Установка версии рабочей нагрузки {0}.</target>
         <note />
       </trans-unit>
       <trans-unit id="NoTrustWithParentPID">
@@ -198,8 +223,8 @@
         <note />
       </trans-unit>
       <trans-unit id="PendingReboot">
-        <source>The machine has a pending reboot. Installation will continue, but you may need to restart.</source>
-        <target state="translated">Ожидается перезагрузка компьютера. Установка будет продолжена, но, возможно, потребуется перезагрузить компьютер.</target>
+        <source>The machine has a pending reboot. The workload operation will continue, but you may need to restart.</source>
+        <target state="translated">Ожидается перезагрузка компьютера. Операция рабочей нагрузки будет продолжена, но может потребоваться перезагрузить компьютер.</target>
         <note />
       </trans-unit>
       <trans-unit id="ResolvingPackageUrls">
@@ -231,6 +256,11 @@
         <source>Rolling back pack {0} installation...</source>
         <target state="translated">Откат установки пакета {0}...</target>
         <note />
+      </trans-unit>
+      <trans-unit id="SdkVersionOptionNotSupported">
+        <source>The --sdk-version option is no longer supported for this command.</source>
+        <target state="translated">Параметр --sdk-version больше не поддерживается для этой команды.</target>
+        <note>{Locked="--sdk-version"}</note>
       </trans-unit>
       <trans-unit id="SkipManifestUpdateOptionDescription">
         <source>Skip updating the workload manifests.</source>
@@ -275,6 +305,11 @@
       <trans-unit id="PrintDownloadLinkOnlyDescription">
         <source>Only print the list of links to download without downloading.</source>
         <target state="translated">Печатать только список ссылок для скачивания, не выполняя загрузку.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="UpdatedWorkloadMode">
+        <source>Successfully updated workload install mode to use {0}.</source>
+        <target state="translated">Режим установки рабочей нагрузки изменен на {0}.</target>
         <note />
       </trans-unit>
       <trans-unit id="UsingCacheForPackInstall">
@@ -360,6 +395,11 @@
       <trans-unit id="WorkloadPathOptionName">
         <source>PATH</source>
         <target state="translated">PATH</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="WorkloadSetVersionOptionDescription">
+        <source>A workload version to display or one or more workloads and their versions joined by the '@' character.</source>
+        <target state="translated">Версия рабочей нагрузки для отображения или одна или несколько рабочих нагрузок и их версий, присоединенных символом "@".</target>
         <note />
       </trans-unit>
       <trans-unit id="WorkloadUpdatesAvailable">

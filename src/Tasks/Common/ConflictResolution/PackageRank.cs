@@ -1,13 +1,5 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-//Microsoft.NET.Build.Extensions.Tasks (net7.0) has nullables disabled
-#pragma warning disable IDE0240 // Remove redundant nullable directive
-#nullable disable
-#pragma warning restore IDE0240 // Remove redundant nullable directive
-
-using System;
-using System.Collections.Generic;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 namespace Microsoft.NET.Build.Tasks.ConflictResolution
 {
@@ -15,7 +7,7 @@ namespace Microsoft.NET.Build.Tasks.ConflictResolution
     {
         private Dictionary<string, int> packageRanks;
 
-        public PackageRank(string[] packageIds)
+        public PackageRank(string[]? packageIds)
         {
             var numPackages = packageIds?.Length ?? 0;
 
@@ -24,9 +16,9 @@ namespace Microsoft.NET.Build.Tasks.ConflictResolution
 
             for (int i = numPackages - 1; i >= 0; i--)
             {
-                var preferredPackageId = packageIds[i].Trim();
+                var preferredPackageId = packageIds?[i].Trim();
 
-                if (preferredPackageId.Length != 0)
+                if (preferredPackageId is not null && preferredPackageId.Length != 0)
                 {
                     // overwrite any duplicates, lowest rank will win.
                     packageRanks[preferredPackageId] = i;
@@ -39,7 +31,7 @@ namespace Microsoft.NET.Build.Tasks.ConflictResolution
         /// </summary>
         /// <param name="packageId">id of package</param>
         /// <returns>rank of package</returns>
-        public int GetPackageRank(string packageId)
+        public int GetPackageRank(string? packageId)
         {
             int rank;
             if (packageId != null && packageRanks.TryGetValue(packageId, out rank))

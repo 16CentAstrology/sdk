@@ -1,7 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
 using System.Net.Http;
 using Microsoft.Build.Utilities;
 using Microsoft.NET.Sdk.Publish.Tasks.Properties;
@@ -10,7 +9,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.Kudu
 {
     public class KuduVfsDeploy : KuduConnect
     {
-        private object _syncObject = new object();
+        private object _syncObject = new();
         private TaskLoggingHelper _logger;
         private List<System.Threading.Tasks.Task> _postTasks;
 
@@ -25,13 +24,14 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.Kudu
         {
             get
             {
-                return String.Format(ConnectionInfo.DestinationUrl, ConnectionInfo.SiteName, "vfs/site/wwwroot/");
+                return ConnectionInfo.DestinationUrl is null
+                    ? string.Empty : string.Format(ConnectionInfo.DestinationUrl, ConnectionInfo.SiteName, "vfs/site/wwwroot/");
             }
         }
 
-        public System.Threading.Tasks.Task DeployAsync(string sourcePath)
+        public System.Threading.Tasks.Task? DeployAsync(string? sourcePath)
         {
-            if (!Directory.Exists(sourcePath))
+            if (sourcePath is null || !Directory.Exists(sourcePath))
             {
                 return null;
             }
@@ -52,7 +52,7 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.Kudu
             return System.Threading.Tasks.Task.Run(
                 async () =>
                 {
-                    string relPath = file.Replace(sourcePath, String.Empty);
+                    string relPath = file.Replace(sourcePath, string.Empty);
                     string relUrl = relPath.Replace(Path.DirectorySeparatorChar, '/');
                     string apiUrl = DestinationUrl + relUrl;
 
@@ -75,21 +75,22 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.Kudu
                                     {
                                         lock (_syncObject)
                                         {
-                                            _logger.LogMessage(Microsoft.Build.Framework.MessageImportance.High, String.Format(Resources.KUDUDEPLOY_AddingFileFailed, ConnectionInfo.SiteName + "/" + relUrl, response.ReasonPhrase));
+                                            _logger.LogMessage(Build.Framework.MessageImportance.High, string.Format(Resources.KUDUDEPLOY_AddingFileFailed, ConnectionInfo.SiteName + "/" + relUrl, response.ReasonPhrase));
                                         }
                                     }
                                     else
                                     {
                                         lock (_syncObject)
                                         {
-                                            _logger.LogMessage(Microsoft.Build.Framework.MessageImportance.High, String.Format(Resources.KUDUDEPLOY_AddingFile, ConnectionInfo.SiteName + "/" + relUrl));
+                                            _logger.LogMessage(Build.Framework.MessageImportance.High, string.Format(Resources.KUDUDEPLOY_AddingFile, ConnectionInfo.SiteName + "/" + relUrl));
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                });
+                }
+            );
         }
     }
 }

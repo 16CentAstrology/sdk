@@ -1,10 +1,8 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Build.Construction;
 using Microsoft.DotNet.Tools.Common;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Microsoft.DotNet.Cli.Utils
 {
@@ -12,7 +10,7 @@ namespace Microsoft.DotNet.Cli.Utils
     {
         public static bool IsConditionalOnFramework(this ProjectElement el, string framework)
         {
-            string conditionStr;
+            string? conditionStr;
             if (!TryGetFrameworkConditionString(framework, out conditionStr))
             {
                 return el.ConditionChain().Count == 0;
@@ -42,7 +40,7 @@ namespace Microsoft.DotNet.Cli.Utils
             return conditionChainSet;
         }
 
-        public static ProjectItemGroupElement LastItemGroup(this ProjectRootElement root)
+        public static ProjectItemGroupElement? LastItemGroup(this ProjectRootElement root)
         {
             return root.ItemGroupsReversed.FirstOrDefault();
         }
@@ -57,7 +55,7 @@ namespace Microsoft.DotNet.Cli.Utils
             }
 
             ProjectItemGroupElement ret = root.CreateItemGroupElement();
-            string condStr;
+            string? condStr;
             if (TryGetFrameworkConditionString(framework, out condStr))
             {
                 ret.Condition = condStr;
@@ -67,7 +65,7 @@ namespace Microsoft.DotNet.Cli.Utils
             return ret;
         }
 
-        public static ProjectItemGroupElement FindExistingUniformItemGroupWithCondition(this ProjectRootElement root, string projectItemElementType, string framework)
+        public static ProjectItemGroupElement? FindExistingUniformItemGroupWithCondition(this ProjectRootElement root, string projectItemElementType, string framework)
         {
             return root.ItemGroupsReversed.FirstOrDefault((itemGroup) => itemGroup.IsConditionalOnFramework(framework) && itemGroup.IsUniformItemElementType(projectItemElementType));
         }
@@ -118,7 +116,7 @@ namespace Microsoft.DotNet.Cli.Utils
         }
 
 
-        private static bool TryGetFrameworkConditionString(string framework, out string condition)
+        private static bool TryGetFrameworkConditionString(string framework, out string? condition)
         {
             if (string.IsNullOrEmpty(framework))
             {

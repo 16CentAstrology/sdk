@@ -1,9 +1,5 @@
-// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 namespace Microsoft.DotNet.Cli.Utils
 {
@@ -19,20 +15,17 @@ namespace Microsoft.DotNet.Cli.Utils
         public static void Correct()
         {
             var pathEditor = new WindowsRegistryEnvironmentPathEditor();
-            var dotDefaultPath =
-                pathEditor.Get(
-                    SdkEnvironmentVariableTarget.DotDefault);
+            var dotDefaultPath = pathEditor.Get(SdkEnvironmentVariableTarget.DotDefault);
             if (NeedCorrection(dotDefaultPath, out var correctedPath))
             {
-                pathEditor.Set(correctedPath,
-                    SdkEnvironmentVariableTarget.DotDefault);
+                pathEditor.Set(correctedPath, SdkEnvironmentVariableTarget.DotDefault);
             }
         }
 
-        internal static bool NeedCorrection(string existingPath, out string correctedPath)
+        internal static bool NeedCorrection(string? existingPath, out string correctedPath)
         {
             correctedPath = string.Empty;
-            if (string.IsNullOrWhiteSpace(existingPath))
+            if (existingPath is null || string.IsNullOrWhiteSpace(existingPath))
             {
                 return false;
             }

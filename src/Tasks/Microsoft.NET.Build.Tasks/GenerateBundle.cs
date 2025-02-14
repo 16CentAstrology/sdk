@@ -1,16 +1,12 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Build.Framework;
 using Microsoft.NET.HostModel.Bundle;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
 
 namespace Microsoft.NET.Build.Tasks
 {
-    public class GenerateBundle : TaskWithAssemblyResolveHooks
+    public class GenerateBundle : TaskBase
     {
         [Required]
         public ITaskItem[] FilesToBundle { get; set; }
@@ -29,7 +25,7 @@ namespace Microsoft.NET.Build.Tasks
         [Required]
         public string OutputDir { get; set; }
         [Required]
-        public bool ShowDiagnosticOutput { get; set; }        
+        public bool ShowDiagnosticOutput { get; set; }
         [Required]
         public bool EnableCompressionInSingleFile { get; set; }
 
@@ -39,13 +35,20 @@ namespace Microsoft.NET.Build.Tasks
         protected override void ExecuteCore()
         {
             OSPlatform targetOS = RuntimeIdentifier.StartsWith("win") ? OSPlatform.Windows :
-                                  RuntimeIdentifier.StartsWith("osx") ? OSPlatform.OSX : OSPlatform.Linux;
+                                  RuntimeIdentifier.StartsWith("osx") ? OSPlatform.OSX :
+                                  RuntimeIdentifier.StartsWith("freebsd") ? OSPlatform.Create("FREEBSD") :
+                                  RuntimeIdentifier.StartsWith("illumos") ? OSPlatform.Create("ILLUMOS") :
+                                  OSPlatform.Linux;
 
             Architecture targetArch = RuntimeIdentifier.EndsWith("-x64") || RuntimeIdentifier.Contains("-x64-") ? Architecture.X64 :
                                       RuntimeIdentifier.EndsWith("-x86") || RuntimeIdentifier.Contains("-x86-") ? Architecture.X86 :
                                       RuntimeIdentifier.EndsWith("-arm64") || RuntimeIdentifier.Contains("-arm64-") ? Architecture.Arm64 :
                                       RuntimeIdentifier.EndsWith("-arm") || RuntimeIdentifier.Contains("-arm-") ? Architecture.Arm :
-                                      throw new ArgumentException(nameof (RuntimeIdentifier));
+#if !NETFRAMEWORK
+                                      RuntimeIdentifier.EndsWith("-riscv64") || RuntimeIdentifier.Contains("-riscv64-") ? Architecture.RiscV64 :
+                                      RuntimeIdentifier.EndsWith("-loongarch64") || RuntimeIdentifier.Contains("-loongarch64-") ? Architecture.LoongArch64 :
+#endif
+                                      throw new ArgumentException(nameof(RuntimeIdentifier));
 
             BundleOptions options = BundleOptions.None;
             options |= IncludeNativeLibraries ? BundleOptions.BundleNativeBinaries : BundleOptions.None;
@@ -53,7 +56,7 @@ namespace Microsoft.NET.Build.Tasks
             options |= IncludeSymbols ? BundleOptions.BundleSymbolFiles : BundleOptions.None;
             options |= EnableCompressionInSingleFile ? BundleOptions.EnableCompression : BundleOptions.None;
 
-            Version version = new Version(TargetFrameworkVersion);
+            Version version = new(TargetFrameworkVersion);
             var bundler = new Bundler(
                 AppHostName,
                 OutputDir,
@@ -67,8 +70,8 @@ namespace Microsoft.NET.Build.Tasks
 
             foreach (var item in FilesToBundle)
             {
-                fileSpec.Add(new FileSpec(sourcePath: item.ItemSpec, 
-                                          bundleRelativePath:item.GetMetadata(MetadataKeys.RelativePath)));
+                fileSpec.Add(new FileSpec(sourcePath: item.ItemSpec,
+                                          bundleRelativePath: item.GetMetadata(MetadataKeys.RelativePath)));
             }
 
             bundler.GenerateBundle(fileSpec);

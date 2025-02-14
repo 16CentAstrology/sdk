@@ -2,9 +2,24 @@
 <xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.2" xsi:schemaLocation="urn:oasis:names:tc:xliff:document:1.2 xliff-core-1.2-transitional.xsd">
   <file datatype="xml" source-language="en" target-language="zh-Hans" original="../CommonLocalizableStrings.resx">
     <body>
+      <trans-unit id="ArchArgumentName">
+        <source>ARCH</source>
+        <target state="translated">ARCH</target>
+        <note />
+      </trans-unit>
       <trans-unit id="ArchitectureOptionDescription">
         <source>The target architecture.</source>
         <target state="translated">目标体系结构。</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ArtifactsPathArgumentName">
+        <source>ARTIFACTS_DIR</source>
+        <target state="translated">ARTIFACTS_DIR</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ArtifactsPathOptionDescription">
+        <source>The artifacts path. All output from the project, including build, publish, and pack output, will go in subfolders under the specified path.</source>
+        <target state="translated">工件路径。项目中的所有输出(包括生成、发布和打包输出)都将放到指定路径下的子文件夹中。</target>
         <note />
       </trans-unit>
       <trans-unit id="CannotResolveRuntimeIdentifier">
@@ -22,6 +37,36 @@
         <target state="translated">不支持同时指定“-r |--runtime”和“-os”选项。</target>
         <note />
       </trans-unit>
+      <trans-unit id="CmdEnvironmentVariableDescription">
+        <source>Sets the value of an environment variable. 
+Creates the variable if it does not exist, overrides if it does. 
+This will force the tests to be run in an isolated process. 
+This argument can be specified multiple times to provide multiple variables.
+
+Examples:
+-e VARIABLE=abc
+-e VARIABLE="value with spaces"
+-e VARIABLE="value;seperated with;semicolons"
+-e VAR1=abc -e VAR2=def -e VAR3=ghi
+</source>
+        <target state="translated">设置环境变量的值。
+如果该变量不存在，则创建它；如果它已存在，则替代它。
+这将在隔离的进程中强制运行测试。
+可多次指定此参数来提供多个变量。
+
+示例:
+-e VARIABLE=abc
+-e VARIABLE="value with spaces"
+-e VARIABLE="value;seperated with;semicolons"
+-e VAR1=abc -e VAR2=def -e VAR3=ghi
+</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="CmdEnvironmentVariableExpression">
+        <source>NAME="VALUE"</source>
+        <target state="translated">NAME="VALUE"</target>
+        <note />
+      </trans-unit>
       <trans-unit id="CommandInteractiveOptionDescription">
         <source>Allows the command to stop and wait for user input or action (for example to complete authentication).</source>
         <target state="translated">允许命令停止和等待用户输入或操作(例如，用以完成身份验证)。</target>
@@ -32,14 +77,19 @@
         <target state="translated">允许安装预发行包。</target>
         <note />
       </trans-unit>
+      <trans-unit id="CorruptSolutionProjectFolderStructure">
+        <source>The solution file '{0}' is missing EndProject tags or has invalid child-parent project folder mappings around project GUID: '{1}'. Manually repair the solution or try to open and save it in Visual Studio."</source>
+        <target state="translated">解决方案文件 "{0}" 缺少 EndProject 标记或在项目 GUID "{1}" 周围具有无效的子父项目文件夹映射。请手动修复解决方案或尝试将其打开并保存在 Visual Studio 中。</target>
+        <note />
+      </trans-unit>
       <trans-unit id="CouldNotFindAnyProjectInDirectory">
         <source>Could not find any project in `{0}`.</source>
         <target state="translated">“{0}”中找不到任何项目。</target>
         <note />
       </trans-unit>
-      <trans-unit id="CustomConfigurationDisablesPublishAndPackReleaseProperties">
-        <source>A custom configuration was detected in the project '{0}', so the property '{1}' will not take effect.</source>
-        <target state="translated">在项目 "{0}" 中检测到自定义配置，因此属性 "{1}" 将不会生效。</target>
+      <trans-unit id="DidYouMean">
+        <source>Did you mean the following command?</source>
+        <target state="translated">你是否是指以下命令?</target>
         <note />
       </trans-unit>
       <trans-unit id="DisableBuildServersOptionDescription">
@@ -65,12 +115,12 @@ export PATH="$PATH:{0}"
 
 cat &lt;&lt; \EOF &gt;&gt; ~/.bash_profile
 # 添加 .NET Core SDK 工具
-导出 PATH="$PATH:{0}"
+export PATH="$PATH:{0}"
 EOF
 
 可运行以下命令将其添加到当前会话:
 
-导出 PATH ="$PATH:{0}"
+export PATH="$PATH:{0}"
 </target>
         <note />
       </trans-unit>
@@ -94,14 +144,14 @@ export PATH="$PATH:{0}"
 
 cat &lt;&lt; \EOF &gt;&gt; ~/.zprofile
 # 添加 .NET Core SDK 工具
-导出 PATH="$PATH:{0}"
+export PATH="$PATH:{0}"
 EOF
 
 并运行 `zsh -l` 使其用于当前会话。
 
 只可通过运行以下命令将其添加到当前会话:
 
-导出 PATH="$PATH:{0}"
+export PATH="$PATH:{0}"
 </target>
         <note />
       </trans-unit>
@@ -110,9 +160,24 @@ EOF
         <target state="translated">将应用程序发布为依赖框架的应用程序。目标计算机上必须安装兼容的 .NET 运行时才能运行该应用程序。</target>
         <note />
       </trans-unit>
+      <trans-unit id="IncorrectlyFormattedEnvironmentVariables">
+        <source>Incorrectly formatted environment variables: {0}</source>
+        <target state="translated">环境变量格式不正确： {0}</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="MSBuildAdditionalOptionTitle">
+        <source>.NET Cli Options:</source>
+        <target state="translated">.NET Cli 选项:</target>
+        <note />
+      </trans-unit>
       <trans-unit id="MoreThanOneProjectInDirectory">
         <source>Found more than one project in `{0}`. Specify which one to use.</source>
         <target state="translated">在“{0}”中找到多个项目。请指定使用哪一个。</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="OSArgumentName">
+        <source>OS</source>
+        <target state="translated">OS</target>
         <note />
       </trans-unit>
       <trans-unit id="OperatingSystemOptionDescription">
@@ -182,26 +247,29 @@ EOF
       </trans-unit>
       <trans-unit id="SelfContainAndNoSelfContainedConflict">
         <source>The '--self-contained' and '--no-self-contained' options cannot be used together.</source>
-        <target state="translated">“--自包含”和“--非自包含”选项不能一起使用。</target>
-        <note />
+        <target state="translated">"--self-contained"和 "--no-self-contained" 选项不能一起使用。</target>
+        <note>{Locked="--self-contained"}{Locked="--no-self-contained"}</note>
       </trans-unit>
       <trans-unit id="SelfContainedOptionDescription">
         <source>Publish the .NET runtime with your application so the runtime doesn't need to be installed on the target machine.
-The default is 'true' if a runtime identifier is specified.</source>
+The default is 'false.' However, when targeting .NET 7 or lower, the default is 'true' if a runtime identifier is specified.</source>
         <target state="translated">随应用程序一起发布 .NET 运行时，这样就不需要在目标计算机上安装运行时。
-如果指定了运行时标识符，则默认值为 "true"。</target>
+默认值为 "false"。但目标为 .NET 7 或更低版本时，如果指定了运行时标识符，则默认值为 "true"。</target>
         <note />
+      </trans-unit>
+      <trans-unit id="ShortWorkloadSearchVersionDescription">
+        <source>Search for available workload versions or what comprises a workload version. Use 'dotnet workload search version --help' for more information.</source>
+        <target state="translated">搜索可用的工作负载版本或包含工作负载版本的版本。有关详细信息，请使用 'dotnet workload search version --help'。</target>
+        <note>{Locked="dotnet workload search version --help"}</note>
       </trans-unit>
       <trans-unit id="Solution">
         <source>Solution</source>
         <target state="translated">解决方案</target>
         <note />
       </trans-unit>
-      <trans-unit id="SolutionExecutableConfigurationMismatchError">
-        <source>Multiple executable projects in the solution contain conflicting '{0}' values. Ensure the values match. Consider using a Directory.build.props file to set all project configurations. Conflicting projects:
-{1}.</source>
-        <target state="translated">解决方案中的多个可执行项目包含冲突的 "{0}" 值。请确保值能够匹配。请考虑使用 Directory.build.props 文件设置所有项目配置。冲突项目: 
-{1}。</target>
+      <trans-unit id="SolutionArgumentMisplaced">
+        <source>Solution argument '{0}' is misplaced.</source>
+        <target state="translated">解决方案参数“{0}”位置错误。</target>
         <note />
       </trans-unit>
       <trans-unit id="SolutionFile">
@@ -247,6 +315,16 @@ The default is 'true' if a runtime identifier is specified.</source>
       <trans-unit id="Delete">
         <source>Delete</source>
         <target state="translated">删除</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="SolutionFolderAlreadyContainsProject">
+        <source>Solution {0} already contains project {1} in solution folder {2}.</source>
+        <target state="translated">解决方案 {0} 已在解决方案文件夹 {2} 中包含项目 {1}。</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="ToolSettingsNotFound">
+        <source>Tool settings file does not exist for the tool {0}.</source>
+        <target state="translated">工具 {0} 的工具设置文件不存在。</target>
         <note />
       </trans-unit>
       <trans-unit id="Update">
@@ -859,12 +937,12 @@ export PATH="$PATH:{0}"
 
 cat &lt;&lt; \EOF &gt;&gt; ~/.bash_profile
 # 添加 .NET Core SDK 工具
-导出 PATH="$PATH:{0}"
+export PATH="$PATH:{0}"
 EOF
 
 可运行以下命令将其添加到当前会话:
 
-导出 PATH ="$PATH:{0}"
+export PATH="$PATH:{0}"
 </target>
         <note />
       </trans-unit>

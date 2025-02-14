@@ -1,19 +1,12 @@
-// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-#nullable enable
-
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
 using Microsoft.DotNet.Cli.Utils;
 using Microsoft.TemplateEngine.Abstractions;
 using Microsoft.TemplateEngine.Abstractions.PhysicalFileSystem;
-using Microsoft.TemplateEngine.Utils;
 using Microsoft.TemplateEngine.Cli.PostActionProcessors;
+using Microsoft.TemplateEngine.Utils;
 
 namespace Microsoft.DotNet.Tools.New.PostActionProcessors
 {
@@ -32,14 +25,16 @@ namespace Microsoft.DotNet.Tools.New.PostActionProcessors
 
         internal static IReadOnlyList<string> FindSolutionFilesAtOrAbovePath(IPhysicalFileSystem fileSystem, string outputBasePath)
         {
-            return FileFindHelpers.FindFilesAtOrAbovePath(fileSystem, outputBasePath, "*.sln");
+            return FileFindHelpers.FindFilesAtOrAbovePath(fileSystem, outputBasePath, "*.sln")
+                ?? FileFindHelpers.FindFilesAtOrAbovePath(fileSystem, outputBasePath, "*.slnx");
         }
 
         // The project files to add are a subset of the primary outputs, specifically the primary outputs indicated by the primaryOutputIndexes post action argument (semicolon separated)
         // If any indexes are out of range or non-numeric, this method returns false and projectFiles is set to null.
-        internal static bool TryGetProjectFilesToAdd(IPostAction actionConfig, ICreationResult templateCreationResult, string outputBasePath, [NotNullWhen(true)] out IReadOnlyList<string>? projectFiles)
+        internal static bool TryGetProjectFilesToAdd(IPostAction actionConfig, ICreationResult templateCreationResult, string outputBasePath, [NotNullWhen(true)] out IReadOnlyList<string> projectFiles)
         {
             List<string> filesToAdd = new();
+            projectFiles = new List<string>();
 
             if ((actionConfig.Args != null) && actionConfig.Args.TryGetValue("primaryOutputIndexes", out string? projectIndexes))
             {
@@ -49,7 +44,6 @@ namespace Microsoft.DotNet.Tools.New.PostActionProcessors
                     {
                         if (templateCreationResult.PrimaryOutputs.Count <= index || index < 0)
                         {
-                            projectFiles = null;
                             return false;
                         }
 
@@ -57,7 +51,6 @@ namespace Microsoft.DotNet.Tools.New.PostActionProcessors
                     }
                     else
                     {
-                        projectFiles = null;
                         return false;
                     }
                 }
@@ -86,8 +79,8 @@ namespace Microsoft.DotNet.Tools.New.PostActionProcessors
                 return false;
             }
 
-            IReadOnlyList<string>? projectFiles = GetConfiguredFiles(action.Args, creationEffects, "projectFiles", outputBasePath, (path) => Path.GetExtension(path).EndsWith("proj", StringComparison.OrdinalIgnoreCase));
-            if (projectFiles is null)
+            IReadOnlyList<string> projectFiles = GetConfiguredFiles(action.Args, creationEffects, "projectFiles", outputBasePath, (path) => Path.GetExtension(path).EndsWith("proj", StringComparison.OrdinalIgnoreCase));
+            if (!projectFiles.Any())
             {
                 //If the author didn't opt in to the new behavior by specifying "projectFiles", use the old behavior
                 if (!TryGetProjectFilesToAdd(action, templateCreationResult, outputBasePath, out projectFiles))

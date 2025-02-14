@@ -1,4 +1,7 @@
-﻿using Microsoft.Build.Framework;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+
+using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 
 namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
@@ -11,9 +14,8 @@ namespace Microsoft.NET.Sdk.Publish.Tasks.MsDeploy
 
         IBuildEngine BuildEngine { get; }
 
-        object GetProperty(string propertyName);
+        object? GetProperty(string propertyName);
     }
-
 
     internal interface IVSMSDeployHost : IVsPublishMsBuildTaskHost
     {

@@ -1,21 +1,9 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-//Microsoft.NET.Build.Extensions.Tasks (net7.0) has nullables disabled
-#pragma warning disable IDE0240 // Remove redundant nullable directive
-#nullable disable
-#pragma warning restore IDE0240 // Remove redundant nullable directive
-
-using Microsoft.NET.Build.Tasks;
-using Microsoft.Build.Utilities;
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
-using System.Xml.Linq;
-using System.Linq;
-using Microsoft.Build.Framework;
 using System.Reflection;
+using Microsoft.Build.Framework;
 
 namespace Microsoft.NET.Build.Tasks.ConflictResolution
 {
@@ -43,7 +31,7 @@ namespace Microsoft.NET.Build.Tasks.ConflictResolution
 
             //  Need to include assembly name in the key here, since both Microsoft.NET.Build.Tasks and Microsoft.NET.Build.Extensions.Tasks share this code,
             //  but can't share the types of the ConflictItem objects.
-            string assemblyName = typeof(FrameworkListReader).GetTypeInfo().Assembly.FullName;
+            string? assemblyName = typeof(FrameworkListReader).GetTypeInfo().Assembly.FullName;
 
             string objectKey = $"{assemblyName}:{nameof(FrameworkListReader)}:{frameworkListPath}";
 
@@ -76,7 +64,7 @@ namespace Microsoft.NET.Build.Tasks.ConflictResolution
 
             var frameworkList = XDocument.Load(frameworkListPath);
             var ret = new List<ConflictItem>();
-            foreach (var file in frameworkList.Root.Elements("File"))
+            foreach (var file in frameworkList.Root?.Elements("File") ?? [])
             {
                 var type = file.Attribute("Type")?.Value;
 
@@ -98,7 +86,7 @@ namespace Microsoft.NET.Build.Tasks.ConflictResolution
                     return Enumerable.Empty<ConflictItem>();
                 }
 
-                Version assemblyVersion;
+                Version? assemblyVersion;
                 if (string.IsNullOrEmpty(assemblyVersionString) || !Version.TryParse(assemblyVersionString, out assemblyVersion))
                 {
                     string errorMessage = string.Format(CultureInfo.CurrentCulture, Strings.ErrorParsingFrameworkListInvalidValue,

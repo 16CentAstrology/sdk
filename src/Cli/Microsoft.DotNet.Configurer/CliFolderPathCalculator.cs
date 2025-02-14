@@ -1,9 +1,6 @@
-// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.IO;
-using System.Runtime.InteropServices;
 using Microsoft.DotNet.Cli.Utils;
 using NuGet.Common;
 
@@ -18,7 +15,7 @@ namespace Microsoft.DotNet.Configurer
 
         public static string CliFallbackFolderPath =>
             Environment.GetEnvironmentVariable("DOTNET_CLI_TEST_FALLBACKFOLDER") ??
-            Path.Combine(new DirectoryInfo(AppContext.BaseDirectory).Parent.FullName, "NuGetFallbackFolder");
+            Path.Combine(new DirectoryInfo(AppContext.BaseDirectory).Parent?.FullName ?? string.Empty, "NuGetFallbackFolder");
 
         public static string ToolsShimPath => Path.Combine(DotnetUserProfileFolderPath, ToolsShimFolderName);
 
@@ -26,7 +23,7 @@ namespace Microsoft.DotNet.Configurer
             ToolPackageFolderPathCalculator.GetToolPackageFolderPath(ToolsShimPath);
 
         public static BashPathUnderHomeDirectory ToolsShimPathInUnix =>
-            new BashPathUnderHomeDirectory(
+            new(
                 DotnetHomePath,
                 Path.Combine(DotnetProfileDirectoryName, ToolsShimFolderName));
 
@@ -44,8 +41,6 @@ namespace Microsoft.DotNet.Configurer
             Path.Combine(DotnetHomePath, DotnetProfileDirectoryName);
 
         public static string ToolsResolverCachePath => Path.Combine(DotnetUserProfileFolderPath, ToolsResolverCacheFolderName);
-
-        public static string PlatformHomeVariableName => CliFolderPathCalculatorCore.PlatformHomeVariableName;
 
         public static string DotnetHomePath
         {

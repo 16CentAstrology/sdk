@@ -1,11 +1,8 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security.Principal;
-using System.Threading;
 
 namespace Microsoft.DotNet.Cli.Utils
 {
@@ -43,7 +40,7 @@ namespace Microsoft.DotNet.Cli.Utils
         /// Returns the commandline of the currently executing process.
         /// </summary>
         /// <returns>The commandline of the current process.</returns>
-        public static string GetProcessCommandLine()
+        public static string? GetProcessCommandLine()
         {
             return Marshal.PtrToStringAuto(NativeMethods.Windows.GetCommandLine());
         }

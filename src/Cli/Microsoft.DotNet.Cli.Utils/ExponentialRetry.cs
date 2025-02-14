@@ -1,11 +1,5 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Microsoft.DotNet.Cli.Utils
 {
@@ -46,7 +40,7 @@ namespace Microsoft.DotNet.Cli.Utils
             foreach (var t in timer())
             {
                 await t;
-                T result = default;
+                T? result = default;
                 count++;
 
                 result = await action();
@@ -76,9 +70,9 @@ namespace Microsoft.DotNet.Cli.Utils
 
         public static async Task<T> ExecuteWithRetryOnFailure<T>(Func<Task<T>> action,
             int maxRetryCount = 3,
-            Func<IEnumerable<Task>> timer = null)
+            Func<IEnumerable<Task>>? timer = null)
         {
-            timer = timer == null ? () => ExponentialRetry.Timer(ExponentialRetry.Intervals): timer;
+            timer = timer == null ? () => Timer(Intervals) : timer;
             return await ExecuteAsyncWithRetry(action, result => result != null && !result.Equals(default), maxRetryCount, timer);
         }
 

@@ -1,11 +1,10 @@
-// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
 using System.CommandLine;
-using System.CommandLine.Parsing;
-using System.IO;
 using Microsoft.DotNet.Cli;
+using Microsoft.DotNet.Cli.NuGetPackageDownloader;
+using Microsoft.DotNet.Cli.ToolPackage;
 using Microsoft.DotNet.Cli.Utils;
 using Microsoft.DotNet.ToolPackage;
 using Microsoft.Extensions.EnvironmentAbstractions;
@@ -18,42 +17,35 @@ namespace Microsoft.DotNet.Tools.Tool.Install
         private readonly ParseResult _parseResult;
         public string TargetFrameworkToInstall { get; private set; }
 
-        private readonly IToolPackageInstaller _toolPackageInstaller;
-        private readonly PackageId _packageId;
-        private readonly string _packageVersion;
+        private readonly IToolPackageDownloader _toolPackageDownloader;
         private readonly string _configFilePath;
         private readonly string[] _sources;
-        private readonly string _verbosity;
+        private readonly VerbosityOptions _verbosity;
+        private readonly RestoreActionConfig _restoreActionConfig;
 
         public ToolInstallLocalInstaller(
             ParseResult parseResult,
-            IToolPackageInstaller toolPackageInstaller = null)
+            IToolPackageDownloader toolPackageDownloader = null,
+            string runtimeJsonPathForTests = null,
+            RestoreActionConfig restoreActionConfig = null)
         {
             _parseResult = parseResult;
-            _packageId = new PackageId(parseResult.GetValue(ToolInstallCommandParser.PackageIdArgument));
-            _packageVersion = parseResult.GetValue(ToolInstallCommandParser.VersionOption);
             _configFilePath = parseResult.GetValue(ToolInstallCommandParser.ConfigOption);
             _sources = parseResult.GetValue(ToolInstallCommandParser.AddSourceOption);
-            _verbosity = Enum.GetName(parseResult.GetValue(ToolInstallCommandParser.VerbosityOption));
+            _verbosity = parseResult.GetValue(ToolInstallCommandParser.VerbosityOption);
 
-            if (toolPackageInstaller == null)
-            {
-                (IToolPackageStore,
-                    IToolPackageStoreQuery,
-                    IToolPackageInstaller installer) toolPackageStoresAndInstaller
-                        = ToolPackageFactory.CreateToolPackageStoresAndInstaller(
-                            additionalRestoreArguments: parseResult.OptionValuesToBeForwarded(ToolInstallCommandParser.GetCommand()));
-                _toolPackageInstaller = toolPackageStoresAndInstaller.installer;
-            }
-            else
-            {
-                _toolPackageInstaller = toolPackageInstaller;
-            }
+            (IToolPackageStore store,
+                IToolPackageStoreQuery,
+                IToolPackageDownloader downloader) toolPackageStoresAndDownloader
+                    = ToolPackageFactory.CreateToolPackageStoresAndDownloader(
+                        additionalRestoreArguments: parseResult.OptionValuesToBeForwarded(ToolInstallCommandParser.GetCommand()), runtimeJsonPathForTests: runtimeJsonPathForTests);
+            _toolPackageDownloader = toolPackageDownloader ?? toolPackageStoresAndDownloader.downloader;
+            _restoreActionConfig = restoreActionConfig;
 
             TargetFrameworkToInstall = BundledTargetFramework.GetTargetFrameworkMoniker();
         }
 
-        public IToolPackage Install(FilePath manifestFile)
+        public IToolPackage Install(FilePath manifestFile, PackageId packageId)
         {
             if (!string.IsNullOrEmpty(_configFilePath) && !File.Exists(_configFilePath))
             {
@@ -73,24 +65,25 @@ namespace Microsoft.DotNet.Tools.Tool.Install
 
             try
             {
-                IToolPackage toolDownloadedPackage =
-                    _toolPackageInstaller.InstallPackageToExternalManagedLocation(
+                IToolPackage toolDownloadedPackage = _toolPackageDownloader.InstallPackage(
                         new PackageLocation(
                             nugetConfig: configFile,
                             additionalFeeds: _sources,
-                            rootConfigDirectory: manifestFile.GetDirectoryPath()),
-                        _packageId,
+                            rootConfigDirectory: manifestFile.GetDirectoryPath().GetParentPath()),
+                        packageId,
+                        verbosity: _verbosity,
                         versionRange,
                         TargetFrameworkToInstall,
-                        verbosity: _verbosity);
+                        restoreActionConfig: _restoreActionConfig
+                        );
 
                 return toolDownloadedPackage;
             }
             catch (Exception ex) when (InstallToolCommandLowLevelErrorConverter.ShouldConvertToUserFacingError(ex))
             {
                 throw new GracefulException(
-                    messages: InstallToolCommandLowLevelErrorConverter.GetUserFacingMessages(ex, _packageId),
-                    verboseMessages: new[] {ex.ToString()},
+                    messages: InstallToolCommandLowLevelErrorConverter.GetUserFacingMessages(ex, packageId),
+                    verboseMessages: new[] { ex.ToString() },
                     isUserError: false);
             }
         }

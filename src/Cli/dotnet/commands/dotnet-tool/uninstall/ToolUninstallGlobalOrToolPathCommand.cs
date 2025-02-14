@@ -1,11 +1,7 @@
-// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
 using System.CommandLine;
-using System.CommandLine.Parsing;
-using System.IO;
-using System.Linq;
 using System.Transactions;
 using Microsoft.DotNet.Cli;
 using Microsoft.DotNet.Cli.Utils;
@@ -99,11 +95,8 @@ namespace Microsoft.DotNet.Tools.Tool.Uninstall
                     TransactionScopeOption.Required,
                     TimeSpan.Zero))
                 {
-                    foreach (var command in package.Commands)
-                    {
-                        shellShimRepository.RemoveShim(command.Name);
-                    }
-
+                    shellShimRepository.RemoveShim(package.Command.Name);
+                 
                     toolPackageUninstaller.Uninstall(package.PackageDirectory);
 
                     scope.Complete();
@@ -120,7 +113,7 @@ namespace Microsoft.DotNet.Tools.Tool.Uninstall
             {
                 throw new GracefulException(
                     messages: ToolUninstallCommandLowLevelErrorConverter.GetUserFacingMessages(ex, packageId),
-                    verboseMessages: new[] {ex.ToString()},
+                    verboseMessages: new[] { ex.ToString() },
                     isUserError: false);
             }
         }

@@ -1,10 +1,8 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using Microsoft.Build.Framework;
-using System;
-using System.IO;
 using System.Security;
+using Microsoft.Build.Framework;
 
 namespace Microsoft.NET.Build.Tasks
 {
@@ -20,13 +18,13 @@ namespace Microsoft.NET.Build.Tasks
         // facades since net461 was previously only compatible with netstandard1.4 and thus packages only provided netstandard1.4
         // compatible facades.
         private const string SystemRuntimeAssemblyName = "System.Runtime";
-        private static readonly Version SystemRuntimeMinVersion = new Version(4, 1, 0, 0);
+        private static readonly Version SystemRuntimeMinVersion = new(4, 1, 0, 0);
 
         /// <summary>
         /// Set of reference items to analyze.
         /// </summary>
         [Required]
-        public ITaskItem[] References { get; set; }
+        public ITaskItem[]? References { get; set; }
 
         /// <summary>
         /// True if any of the references depend on netstandard.dll
@@ -41,7 +39,7 @@ namespace Microsoft.NET.Build.Tasks
 
         private bool AnyReferenceDependsOnNETStandard()
         {
-            foreach (var reference in References)
+            foreach (var reference in References ?? Array.Empty<ITaskItem>())
             {
                 var referenceSourcePath = ItemUtilities.GetSourcePath(reference);
 

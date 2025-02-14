@@ -1,0 +1,40 @@
+<Project>
+
+  <PropertyGroup>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/*.tmp</DefaultItemExcludes>
+    <XUnitDesktopSettingsFile>$(MSBuildThisFileDirectory)xunit.runner.json</XUnitDesktopSettingsFile>
+    <XUnitCoreSettingsFile>$(MSBuildThisFileDirectory)xunit.runner.json</XUnitCoreSettingsFile>
+  </PropertyGroup>
+
+  <Import Project="..\Directory.Build.props" />
+
+  <PropertyGroup>
+    <ExcludeFromSourceOnlyBuild>true</ExcludeFromSourceOnlyBuild>
+    <NoWarn>$(NoWarn);NU5125</NoWarn>
+
+    <!-- Don't warn about long filenames in packages, we bundle test assets that have long paths
+         (ie HelloWorldWithSubDirs) -->
+    <NoWarn>$(NoWarn);NU5123</NoWarn>
+
+    <GenerateProgramFile>false</GenerateProgramFile>
+
+    <DebugType>embedded</DebugType>
+
+    <!-- Don't generate separate symbol packages for the test packages -->
+    <IncludeSymbols>false</IncludeSymbols>
+  </PropertyGroup>
+
+  <!-- Global usings -->
+  <!-- See: https://learn.microsoft.com/dotnet/core/project-sdk/msbuild-props#using -->
+  <ItemGroup>
+    <Using Include="FluentAssertions" />
+    <Using Include="Microsoft.NET.TestFramework" />
+    <Using Include="Microsoft.NET.TestFramework.Assertions" />
+    <Using Include="Microsoft.NET.TestFramework.Commands" />
+    <Using Include="Microsoft.NET.TestFramework.ProjectConstruction" />
+    <Using Include="Microsoft.NET.TestFramework.Utilities" />
+    <Using Include="Xunit" />
+    <Using Include="Xunit.Abstractions" />
+  </ItemGroup>
+
+</Project>

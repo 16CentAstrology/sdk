@@ -1,10 +1,11 @@
-﻿using System;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 namespace Microsoft.NET.Sdk.Publish.Tasks
 {
     public class EnvironmentHelper
     {
-        public static string GetEnvironmentVariable(string name)
+        public static string? GetEnvironmentVariable(string name)
         {
             return Environment.GetEnvironmentVariable(name);
         }

@@ -1,13 +1,9 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+#nullable disable
+
 using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Razor;
@@ -95,27 +91,60 @@ namespace Microsoft.NET.Sdk.Razor.Tool
                 }
             }
 
+            PatchExtensions(ExtensionNames, ExtensionFilePaths, Error);
+
             return true;
+        }
+
+        private const string RazorCompilerFileName = "Microsoft.CodeAnalysis.Razor.Compiler.dll";
+
+        /// <summary>
+        /// Replaces the assembly for MVC extension with the one shipped alongside SDK (as opposed to the one from NuGet).
+        /// </summary>
+        /// <remarks>
+        /// Needed so the Razor compiler can change its APIs without breaking legacy MVC scenarios.
+        /// </remarks>
+        internal static void PatchExtensions(CommandOption extensionNames, CommandOption extensionFilePaths, TextWriter error)
+        {
+            string currentDirectory = null;
+
+            for (int i = 0; i < extensionNames.Values.Count; i++)
+            {
+                var extensionName = extensionNames.Values[i];
+
+                string expectedOriginalPath = extensionName switch
+                {
+                    "MVC-1.0" or "MVC-1.1" or "MVC-2.0" or "MVC-2.1" => "Microsoft.AspNetCore.Mvc.Razor.Extensions",
+                    "MVC-3.0" => "Microsoft.CodeAnalysis.Razor.Compiler",
+                    _ => null,
+                };
+
+                if (expectedOriginalPath is not null)
+                {
+                    var extensionFilePath = extensionFilePaths.Values[i];
+                    if (!string.Equals(expectedOriginalPath, Path.GetFileNameWithoutExtension(extensionFilePath), StringComparison.OrdinalIgnoreCase))
+                    {
+                        error.WriteLine($"Extension '{extensionName}' has unexpected path '{extensionFilePath}'.");
+                    }
+                    else
+                    {
+                        currentDirectory ??= Path.GetDirectoryName(typeof(Application).Assembly.Location);
+                        extensionFilePaths.Values[i] = Path.Combine(currentDirectory, RazorCompilerFileName);
+                    }
+                }
+            }
         }
 
         protected override Task<int> ExecuteCoreAsync()
         {
             if (!Parent.Checker.Check(ExtensionFilePaths.Values))
             {
-                Error.WriteLine($"Extenions could not be loaded. See output for details.");
+                Error.WriteLine($"Extensions could not be loaded. See output for details.");
                 return Task.FromResult(ExitCodeFailure);
             }
 
-            // Loading all of the extensions should succeed as the dependency checker will have already
-            // loaded them.
-            var extensions = new RazorExtension[ExtensionNames.Values.Count];
-            for (var i = 0; i < ExtensionNames.Values.Count; i++)
-            {
-                extensions[i] = new AssemblyExtension(ExtensionNames.Values[i], Parent.Loader.LoadFromPath(ExtensionFilePaths.Values[i]));
-            }
-
             var version = RazorLanguageVersion.Parse(Version.Value());
-            var configuration = RazorConfiguration.Create(version, Configuration.Value(), extensions);
+            var configuration = new RazorConfiguration(version, Configuration.Value(), Extensions: [], UseConsolidatedMvcViews: false);
 
             var result = ExecuteCore(
                 configuration: configuration,
@@ -138,6 +167,8 @@ namespace Microsoft.NET.Sdk.Razor.Tool
 
             var engine = RazorProjectEngine.Create(configuration, RazorProjectFileSystem.Empty, b =>
             {
+                b.RegisterExtensions();
+
                 b.Features.Add(new DefaultMetadataReferenceFeature() { References = metadataReferences });
                 b.Features.Add(new CompilationTagHelperFeature());
                 b.Features.Add(new DefaultTagHelperDescriptorProvider());

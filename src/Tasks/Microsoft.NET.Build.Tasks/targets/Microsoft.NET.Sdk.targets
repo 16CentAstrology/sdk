@@ -42,6 +42,26 @@ Copyright (c) .NET Foundation. All rights reserved.
     <ComputeNETCoreBuildOutputFiles Condition=" '$(ComputeNETCoreBuildOutputFiles)' == '' and '$(TargetFrameworkIdentifier)' == '.NETCoreApp'">true</ComputeNETCoreBuildOutputFiles>
     <_GenerateRuntimeConfigurationPropertyInputsCache Condition="'$(_GenerateRuntimeConfigurationPropertyInputsCache)' == ''">$(IntermediateOutputPath)$(MSBuildProjectName).genruntimeconfig.cache</_GenerateRuntimeConfigurationPropertyInputsCache>
     <_GenerateRuntimeConfigurationPropertyInputsCache>$([MSBuild]::NormalizePath($(MSBuildProjectDirectory), $(_GenerateRuntimeConfigurationPropertyInputsCache)))</_GenerateRuntimeConfigurationPropertyInputsCache>
+    <_GeneratePublishDependencyFilePropertyInputsCache Condition="'$(_GeneratePublishDependencyFilePropertyInputsCache)' == ''">$(IntermediateOutputPath)$(MSBuildProjectName).genpublishdeps.cache</_GeneratePublishDependencyFilePropertyInputsCache>
+    <_GeneratePublishDependencyFilePropertyInputsCache>$([MSBuild]::NormalizePath($(MSBuildProjectDirectory), $(_GeneratePublishDependencyFilePropertyInputsCache)))</_GeneratePublishDependencyFilePropertyInputsCache>
+    <_GenerateSingleFileBundlePropertyInputsCache Condition="'$(_GenerateSingleFileBundlePropertyInputsCache)' == ''">$(IntermediateOutputPath)$(MSBuildProjectName).genbundle.cache</_GenerateSingleFileBundlePropertyInputsCache>
+    <_GenerateSingleFileBundlePropertyInputsCache>$([MSBuild]::NormalizePath($(MSBuildProjectDirectory), $(_GenerateSingleFileBundlePropertyInputsCache)))</_GenerateSingleFileBundlePropertyInputsCache>
+  </PropertyGroup>
+
+  <!-- For .NET 8 and higher, we will by default use a simplified "portable" RID graph -->
+  <PropertyGroup>
+    <_UseRidGraphWasSpecified Condition="'$(UseRidGraph)' != ''">true</_UseRidGraphWasSpecified>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(UseRidGraph)' == ''">
+    <UseRidGraph Condition="'$(TargetFrameworkIdentifier)' == '.NETCoreApp' AND $([MSBuild]::VersionGreaterThanOrEquals($(TargetFrameworkVersion), '8.0'))">false</UseRidGraph>
+    <UseRidGraph Condition="'$(UseRidGraph)' == ''">true</UseRidGraph>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(RuntimeIdentifierGraphPath)' == ''">
+    <RuntimeIdentifierGraphPath Condition="'$(UseRidGraph)' == 'true'">$(BundledRuntimeIdentifierGraphFile)</RuntimeIdentifierGraphPath>
+
+    <!-- The portable RID graph should be in the same directory as the full RID graph -->
+    <RuntimeIdentifierGraphPath Condition="'$(UseRidGraph)' != 'true'">$([System.IO.Path]::GetDirectoryName($(BundledRuntimeIdentifierGraphFile)))/PortableRuntimeIdentifierGraph.json</RuntimeIdentifierGraphPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -81,6 +101,14 @@ Copyright (c) .NET Foundation. All rights reserved.
 
   <PropertyGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETCoreApp' and $([MSBuild]::VersionGreaterThanOrEquals($(TargetFrameworkVersion), '6.0'))">
     <PredefinedCulturesOnly Condition="'$(PredefinedCulturesOnly)' == '' and '$(InvariantGlobalization)' == 'true'">true</PredefinedCulturesOnly>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(GenerateResourceWarnOnBinaryFormatterUse)' == '' and '$(TargetFrameworkIdentifier)' == '.NETCoreApp' and $([MSBuild]::VersionEquals($(TargetFrameworkVersion), '8.0'))">
+    <GenerateResourceWarnOnBinaryFormatterUse>true</GenerateResourceWarnOnBinaryFormatterUse>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(RespectAlreadyAssignedItemCulture)' == '' and '$(TargetFrameworkIdentifier)' == '.NETCoreApp' and $([MSBuild]::VersionGreaterThanOrEquals($(TargetFrameworkVersion), '9.0'))">
+    <RespectAlreadyAssignedItemCulture>true</RespectAlreadyAssignedItemCulture>
   </PropertyGroup>
 
   <!-- Set the IsRidAgnostic property if this project should NOT accept global RuntimeIdentifier and SelfContained
@@ -130,6 +158,45 @@ Copyright (c) .NET Foundation. All rights reserved.
     <IncludeProjectsNotInAssetsFileInDepsFile Condition="'$(IncludeProjectsNotInAssetsFileInDepsFile)' == ''">true</IncludeProjectsNotInAssetsFileInDepsFile>
   </PropertyGroup>
 
+  <!--
+    BinaryFormatter Disabling
+    ===========================
+
+    The EnableUnsafeBinaryFormatterSerialization setting controls both runtime and compile-time behavior.
+    The behavior is slightly different depending on the project type and target runtime.
+
+    If the property is explicitly set to TRUE:
+      - The APIs are obsolete as warning, and calls to the APIs will succeed at runtime.
+
+    If the property is explicitly set to FALSE:
+      - On .NET 5 & 6, the APIs are obsolete as warning, and calls to the APIs will fail at runtime.
+      - On .NET 7+, the APIs are obsolete as error, and calls to the APIs will fail at runtime.
+
+    If the property is not explicitly TRUE or FALSE:
+      - On .NET 5 & 6, the APIs are obsolete as warning, and calls to the APIs will succeed at runtime.
+      - On .NET 7, the APIs are obsolete as error, but calls to the APIs will succeed at runtime.
+      - On .NET 8+, the APIs are obsolete as error, and calls to the APIs will fail at runtime
+        unless the SDK has opted in to keeping legacy BinaryFormatter behavior around.
+
+    n.b. The APIs are already marked obsolete (as warning) in .NET 5, so we don't need to special-case
+    them unless we want to upgrade them to warn-as-error.
+  -->
+
+  <PropertyGroup Condition="'$(EnableUnsafeBinaryFormatterSerialization)' != 'true' AND '$(TargetFrameworkIdentifier)' == '.NETCoreApp' AND $([MSBuild]::VersionGreaterThanOrEquals($(TargetFrameworkVersion), '7.0'))">
+    <!--
+      Certain project types need to re-enable BinaryFormatter by default; it will still be warn-as-error but will work at runtime.
+      WinForms: enabled through 8.0 (but not after)
+      WPF: enabled through 8.0 (but not after)
+    -->
+    <_ProjectTypeRequiresBinaryFormatter Condition="'$(UseWindowsForms)' == 'true' AND $([MSBuild]::VersionLessThanOrEquals($(TargetFrameworkVersion), '8.0'))">true</_ProjectTypeRequiresBinaryFormatter>
+    <_ProjectTypeRequiresBinaryFormatter Condition="'$(UseWPF)' == 'true' AND $([MSBuild]::VersionLessThanOrEquals($(TargetFrameworkVersion), '8.0'))">true</_ProjectTypeRequiresBinaryFormatter>
+    <!-- controls warn as error -->
+    <_BinaryFormatterObsoleteAsError>true</_BinaryFormatterObsoleteAsError>
+    <!-- controls runtime behavior (AppContext & trimming) -->
+    <EnableUnsafeBinaryFormatterSerialization Condition="'$(EnableUnsafeBinaryFormatterSerialization)' == '' AND '$(_ProjectTypeRequiresBinaryFormatter)' == 'true'">true</EnableUnsafeBinaryFormatterSerialization>
+    <EnableUnsafeBinaryFormatterSerialization Condition="$([MSBuild]::VersionGreaterThanOrEquals($(TargetFrameworkVersion), '8.0')) AND '$(_ProjectTypeRequiresBinaryFormatter)' != 'true'">false</EnableUnsafeBinaryFormatterSerialization>
+  </PropertyGroup>
+
   <PropertyGroup>
     <CoreBuildDependsOn>
       _CheckForBuildWithNoBuild;
@@ -153,11 +220,57 @@ Copyright (c) .NET Foundation. All rights reserved.
     </RebuildDependsOn>
   </PropertyGroup>
 
-  <!-- TODO: this target should not check GeneratePackageOnBuild.
-             remove when https://github.com/NuGet/Home/issues/7801 is fixed.
-    -->
+  <PropertyGroup Condition="'$(MSBuildRuntimeType)' == 'Full'">
+    <!-- Automatically opt users into using the toolset package if they are running an MSBuild other than what this SDK was built against.
+          This is to reduce 'tearing'/dependency mismatch, but as always users can override this behavior by disabling the hosted compiler flag. -->
+    <BuildWithNetFrameworkHostedCompiler Condition="'$(BuildWithNetFrameworkHostedCompiler)' == ''
+                                                    and '$(_IsDisjointMSBuildVersion)' == 'true'
+                                                    and ('$(Language)' == 'C#'
+                                                    or '$(Language)' == 'VB')">true</BuildWithNetFrameworkHostedCompiler>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(BuildWithNetFrameworkHostedCompiler)' == 'true' and '$(OS)' == 'Windows_NT'">
+    <RoslynTargetsPath>$(NuGetPackageRoot)\microsoft.net.sdk.compilers.toolset\$(NETCoreSdkVersion)</RoslynTargetsPath>
+    <_NeedToDownloadMicrosoftNetSdkCompilersToolsetPackage>true</_NeedToDownloadMicrosoftNetSdkCompilersToolsetPackage>
+    <_MicrosoftNetSdkCompilersToolsetPackageRootEmpty Condition="'$(NuGetPackageRoot)' == ''">true</_MicrosoftNetSdkCompilersToolsetPackageRootEmpty>
+  </PropertyGroup>
+
+  <!-- NOTE: Keep in sync with https://github.com/dotnet/msbuild/blob/main/src/Tasks/Microsoft.Common.tasks -->
+  <!-- `Condition="Exists('$(RoslynTargetsPath)')` is needed because the package might not be yet downloaded during restore in VS
+        and we do not want to fail the restore phase because of that. -->
+  <UsingTask TaskName="Microsoft.CodeAnalysis.BuildTasks.CopyRefAssembly" AssemblyFile="$(RoslynTargetsPath)\Microsoft.Build.Tasks.CodeAnalysis.dll" Condition="Exists('$(RoslynTargetsPath)')" />
+  <UsingTask TaskName="Microsoft.CodeAnalysis.BuildTasks.Csc" AssemblyFile="$(RoslynTargetsPath)\Microsoft.Build.Tasks.CodeAnalysis.dll" Condition="Exists('$(RoslynTargetsPath)')" />
+  <UsingTask TaskName="Microsoft.CodeAnalysis.BuildTasks.Vbc" AssemblyFile="$(RoslynTargetsPath)\Microsoft.Build.Tasks.CodeAnalysis.dll" Condition="Exists('$(RoslynTargetsPath)')" />
+
+  <ItemGroup Condition="'$(_NeedToDownloadMicrosoftNetSdkCompilersToolsetPackage)' == 'true'">
+    <PackageDownload Include="Microsoft.Net.Sdk.Compilers.Toolset" Version="[$(NETCoreSdkVersion)]" />
+  </ItemGroup>
+
+  <Target Name="_CheckMicrosoftNetCompilersToolsetFrameworkPackageReference" Condition="'$(MSBuildRuntimeType)' == 'Full'" BeforeTargets="CollectPackageReferences">
+    <!-- Users should not be setting Microsoft.Net.Compilers.Toolset.Framework directly.
+         If they do, and BuildWithNetFrameworkHostedCompiler is also set, the former will override the latter.
+         This makes it more explicit that that is not supported. -->
+    <NETSdkWarning ResourceName="CannotDirectlyReferenceMicrosoftNetCompilersToolsetFramework"
+        Condition="'@(PackageReference->AnyHaveMetadataValue('Identity', 'Microsoft.Net.Compilers.Toolset.Framework'))' == 'true'" />
+  </Target>
+
+  <Target Name="_CheckMicrosoftNetSdkCompilersToolsetPackageExists"
+          Condition="'$(_NeedToDownloadMicrosoftNetSdkCompilersToolsetPackage)' == 'true' and '$(DesignTimeBuild)' != 'true'"
+          BeforeTargets="CoreCompile">
+    <!-- If users did not run restore or it failed to download the Microsoft.Net.Sdk.Compilers.Toolset package
+         (but they proceeded to build, e.g., in Visual Studio), display an error with suggestions how to fix the problem. -->
+    <NETSdkError ResourceName="MicrosoftNetSdkCompilersToolsetNotFound"
+        Condition="'$(_MicrosoftNetSdkCompilersToolsetPackageRootEmpty)' != 'true' and !Exists('$(RoslynTargetsPath)')"
+        FormatArguments="$(NETCoreSdkVersion)" />
+
+    <!-- Warn if $(NuGetPackageRoot) is empty. See https://github.com/dotnet/sdk/issues/43016.
+         WPF temp projects are ignored (it's known their NuGetPackageRoot is empty and user cannot fix that anyway). -->
+    <NETSdkWarning ResourceName="MicrosoftNetSdkCompilersToolsetRootEmpty"
+        Condition="'$(_MicrosoftNetSdkCompilersToolsetPackageRootEmpty)' == 'true' and !($(MSBuildProjectFile.EndsWith('_wpftmp.csproj')) or $(MSBuildProjectFile.EndsWith('_wpftmp.vbproj')))" />
+  </Target>
+
   <Target Name="_CheckForBuildWithNoBuild"
-          Condition="'$(NoBuild)' == 'true' and '$(GeneratePackageOnBuild)' != 'true'">
+          Condition="'$(NoBuild)' == 'true'">
     <NETSdkError ResourceName="NoBuildRequested" />
   </Target>
 
@@ -194,6 +307,16 @@ Copyright (c) .NET Foundation. All rights reserved.
       <RuntimePackAsset Remove="@(_ConflictPackageFiles)" Condition="'%(_ConflictPackageFiles.ConflictItemType)' != 'Reference'" />
     </ItemGroup>
 
+    <!-- Set valid RID platforms for runtime assets if targeting .NET 8+ and using the RID graph is not enabled. -->
+    <ItemGroup Condition="$([MSBuild]::VersionGreaterThanOrEquals($(_TargetFrameworkVersionWithoutV), '8.0'))
+        and @(RuntimeHostConfigurationOption->WithMetadataValue('Identity', 'System.Runtime.Loader.UseRidGraph')->WithMetadataValue('Value', 'true')->Count()) == 0
+        and '@(_KnownRuntimeIdentifierPlatformsForTargetFramework)' != ''">
+      <!-- Known RID platforms for all target frameworks comes from BundledVersions -->
+      <_ValidRuntimeIdentifierPlatformsForAssets Include="@(_KnownRuntimeIdentiferPlatforms)" />
+      <!-- Known RID platforms for current target framework comes from ProcessFrameworkReferences output -->
+      <_ValidRuntimeIdentifierPlatformsForAssets Include="@(_KnownRuntimeIdentifierPlatformsForTargetFramework)" Exclude="@(_ExcludedKnownRuntimeIdentiferPlatforms)"/>
+    </ItemGroup>
+
     <GenerateDepsFile ProjectPath="$(MSBuildProjectFullPath)"
                       AssetsFilePath="$(ProjectAssetsFile)"
                       DepsFilePath="$(ProjectDepsFilePath)"
@@ -218,9 +341,9 @@ Copyright (c) .NET Foundation. All rights reserved.
                       ResolvedRuntimeTargetsFiles="@(RuntimeTargetsCopyLocalItems)"
                       IsSelfContained="$(SelfContained)"
                       IncludeRuntimeFileVersions="$(IncludeFileVersionsInDependencyFile)"
-                      RuntimeGraphPath="$(BundledRuntimeIdentifierGraphFile)"
-                      IncludeProjectsNotInAssetsFile="$(IncludeProjectsNotInAssetsFileInDepsFile)"/>
-
+                      RuntimeGraphPath="$(RuntimeIdentifierGraphPath)"
+                      IncludeProjectsNotInAssetsFile="$(IncludeProjectsNotInAssetsFileInDepsFile)"
+                      ValidRuntimeIdentifierPlatformsForAssets="@(_ValidRuntimeIdentifierPlatformsForAssets)"/>
     <ItemGroup>
       <!-- Do this in an ItemGroup instead of as an output parameter of the GenerateDepsFile task so that it still gets added to the item set
            during incremental builds when the task is skipped -->
@@ -407,9 +530,29 @@ Copyright (c) .NET Foundation. All rights reserved.
                                     Value="$(_AggressiveAttributeTrimming)"
                                     Trim="true" />
 
+    <RuntimeHostConfigurationOption Include="System.ComponentModel.DefaultValueAttribute.IsSupported"
+                                    Condition="'$(_DefaultValueAttributeSupport)' != ''"
+                                    Value="$(_DefaultValueAttributeSupport)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.ComponentModel.Design.IDesignerHost.IsSupported"
+                                    Condition="'$(_DesignerHostSupport)' != ''"
+                                    Value="$(_DesignerHostSupport)"
+                                    Trim="true" />
+
     <RuntimeHostConfigurationOption Include="System.ComponentModel.TypeConverter.EnableUnsafeBinaryFormatterInDesigntimeLicenseContextSerialization"
                                     Condition="'$(EnableUnsafeBinaryFormatterInDesigntimeLicenseContextSerialization)' != ''"
                                     Value="$(EnableUnsafeBinaryFormatterInDesigntimeLicenseContextSerialization)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.ComponentModel.TypeDescriptor.IsComObjectDescriptorSupported"
+                                    Condition="'$(_ComObjectDescriptorSupport)' != ''"
+                                    Value="$(_ComObjectDescriptorSupport)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Data.DataSet.XmlSerializationIsSupported"
+                                    Condition="'$(_DataSetXmlSerializationSupport)' != ''"
+                                    Value="$(_DataSetXmlSerializationSupport)"
                                     Trim="true" />
 
     <RuntimeHostConfigurationOption Include="System.Diagnostics.Debugger.IsSupported"
@@ -417,9 +560,24 @@ Copyright (c) .NET Foundation. All rights reserved.
                                     Value="$(DebuggerSupport)"
                                     Trim="true" />
 
+    <RuntimeHostConfigurationOption Include="System.Diagnostics.Metrics.Meter.IsSupported"
+                                    Condition="'$(MetricsSupport)' != ''"
+                                    Value="$(MetricsSupport)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Diagnostics.StackTrace.IsSupported"
+                                    Condition="'$(StackTraceSupport)' != ''"
+                                    Value="$(StackTraceSupport)"
+                                    Trim="true" />
+
     <RuntimeHostConfigurationOption Include="System.Diagnostics.Tracing.EventSource.IsSupported"
                                     Condition="'$(EventSourceSupport)' != ''"
                                     Value="$(EventSourceSupport)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Drawing.Design.UITypeEditor.IsSupported"
+                                    Condition="'$(_WinFormsUITypeEditorSupport)' != ''"
+                                    Value="$(_WinFormsUITypeEditorSupport)"
                                     Trim="true" />
 
     <RuntimeHostConfigurationOption Include="System.GC.Concurrent"
@@ -430,6 +588,10 @@ Copyright (c) .NET Foundation. All rights reserved.
                                     Condition="'$(ServerGarbageCollection)' != ''"
                                     Value="$(ServerGarbageCollection)" />
 
+    <RuntimeHostConfigurationOption Include="System.GC.DynamicAdaptationMode"
+                                    Condition="'$(GarbageCollectionAdaptationMode)' != ''"
+                                    Value="$(GarbageCollectionAdaptationMode)" />
+
     <RuntimeHostConfigurationOption Include="System.GC.RetainVM"
                                     Condition="'$(RetainVMGarbageCollection)' != ''"
                                     Value="$(RetainVMGarbageCollection)" />
@@ -439,9 +601,24 @@ Copyright (c) .NET Foundation. All rights reserved.
                                     Value="$(InvariantGlobalization)"
                                     Trim="true" />
 
+    <RuntimeHostConfigurationOption Include="System.TimeZoneInfo.Invariant"
+                                    Condition="'$(InvariantTimezone)' != ''"
+                                    Value="$(InvariantTimezone)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Globalization.Hybrid"
+                                    Condition="'$(HybridGlobalization)' != ''"
+                                    Value="$(HybridGlobalization)"
+                                    Trim="true" />
+
     <RuntimeHostConfigurationOption Include="System.Globalization.PredefinedCulturesOnly"
                                     Condition="'$(PredefinedCulturesOnly)' != ''"
                                     Value="$(PredefinedCulturesOnly)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Linq.Enumerable.IsSizeOptimized"
+                                    Condition="'$(UseSizeOptimizedLinq)' != ''"
+                                    Value="$(UseSizeOptimizedLinq)"
                                     Trim="true" />
 
     <RuntimeHostConfigurationOption Include="System.Net.Http.EnableActivityPropagation"
@@ -452,6 +629,11 @@ Copyright (c) .NET Foundation. All rights reserved.
     <RuntimeHostConfigurationOption Include="System.Net.Http.UseNativeHttpHandler"
                                     Condition="'$(UseNativeHttpHandler)' != ''"
                                     Value="$(UseNativeHttpHandler)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Net.Security.UseManagedNtlm"
+                                    Condition="'$(_UseManagedNtlm)' != ''"
+                                    Value="$(_UseManagedNtlm)"
                                     Trim="true" />
 
     <RuntimeHostConfigurationOption Include="System.Reflection.Metadata.MetadataUpdater.IsSupported"
@@ -494,6 +676,11 @@ Copyright (c) .NET Foundation. All rights reserved.
                                     Value="$(EnableCppCLIHostActivation)"
                                     Trim="true" />
 
+    <RuntimeHostConfigurationOption Include="System.Runtime.InteropServices.Marshalling.EnableGeneratedComInterfaceComImportInterop"
+                                    Condition="'$(EnableGeneratedComInterfaceComImportInterop)' != ''"
+                                    Value="$(EnableGeneratedComInterfaceComImportInterop)"
+                                    Trim="true" />
+
     <RuntimeHostConfigurationOption Include="System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization"
                                     Condition="'$(EnableUnsafeBinaryFormatterSerialization)' != ''"
                                     Value="$(EnableUnsafeBinaryFormatterSerialization)"
@@ -515,19 +702,28 @@ Copyright (c) .NET Foundation. All rights reserved.
                                     Condition="'$(TieredPGO)' != ''"
                                     Value="$(TieredPGO)" />
 
+    <RuntimeHostConfigurationOption Include="System.Runtime.Loader.UseRidGraph"
+                                    Condition="'$(_UseRidGraphWasSpecified)' == 'true'"
+                                    Value="$(UseRidGraph)" />
+
     <RuntimeHostConfigurationOption Include="System.StartupHookProvider.IsSupported"
                                     Condition="'$(StartupHookSupport)' != ''"
                                     Value="$(StartupHookSupport)"
                                     Trim="true" />
 
-    <RuntimeHostConfigurationOption Include="System.Threading.Thread.EnableAutoreleasePool"
-                                    Condition="'$(AutoreleasePoolSupport)' != ''"
-                                    Value="$(AutoreleasePoolSupport)"
-                                    Trim="true" />
-
     <RuntimeHostConfigurationOption Include="System.Text.Encoding.EnableUnsafeUTF7Encoding"
                                     Condition="'$(EnableUnsafeUTF7Encoding)' != ''"
                                     Value="$(EnableUnsafeUTF7Encoding)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault"
+                                    Condition="'$(JsonSerializerIsReflectionEnabledByDefault)' != ''"
+                                    Value="$(JsonSerializerIsReflectionEnabledByDefault)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Threading.Thread.EnableAutoreleasePool"
+                                    Condition="'$(AutoreleasePoolSupport)' != ''"
+                                    Value="$(AutoreleasePoolSupport)"
                                     Trim="true" />
 
     <RuntimeHostConfigurationOption Include="System.Threading.ThreadPool.MinThreads"
@@ -537,6 +733,51 @@ Copyright (c) .NET Foundation. All rights reserved.
     <RuntimeHostConfigurationOption Include="System.Threading.ThreadPool.MaxThreads"
                                     Condition="'$(ThreadPoolMaxThreads)' != ''"
                                     Value="$(ThreadPoolMaxThreads)" />
+
+    <RuntimeHostConfigurationOption Include="System.Threading.ThreadPool.UseWindowsThreadPool"
+                                    Condition="'$(UseWindowsThreadPool)' != ''"
+                                    Value="$(UseWindowsThreadPool)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Windows.Forms.ActiveXImpl.IsSupported"
+                                    Condition="'$(_ActiveXImplSupport)' != ''"
+                                    Value="$(_ActiveXImplSupport)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Windows.Forms.Binding.IsSupported"
+                                    Condition="'$(_WinFormsBindingSupport)' != ''"
+                                    Value="$(_WinFormsBindingSupport)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Windows.Forms.Control.AreDesignTimeFeaturesSupported"
+                                    Condition="'$(_WinFormsDesignTimeFeaturesSupport)' != ''"
+                                    Value="$(_WinFormsDesignTimeFeaturesSupport)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Windows.Forms.Control.UseComponentModelRegisteredTypes"
+                                    Condition="'$(_UseComponentModelRegisteredTypes)' != ''"
+                                    Value="$(_UseComponentModelRegisteredTypes)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Windows.Forms.ImageIndexConverter.IsSupported"
+                                    Condition="'$(_WinFormsImageIndexConverterSupport)' != ''"
+                                    Value="$(_WinFormsImageIndexConverterSupport)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Windows.Forms.MdiWindowDialog.IsSupported"
+                                    Condition="'$(_MdiWindowDialogSupport)' != ''"
+                                    Value="$(_MdiWindowDialogSupport)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Windows.Forms.Primitives.TypeConverterHelper.UseComponentModelRegisteredTypes"
+                                    Condition="'$(_UseComponentModelRegisteredTypes)' != ''"
+                                    Value="$(_UseComponentModelRegisteredTypes)"
+                                    Trim="true" />
+
+    <RuntimeHostConfigurationOption Include="System.Xml.XmlResolver.IsNetworkingEnabledByDefault"
+                                    Condition="'$(XmlResolverIsNetworkingEnabledByDefault)' != ''"
+                                    Value="$(XmlResolverIsNetworkingEnabledByDefault)"
+                                    Trim="true" />
   </ItemGroup>
 
   <!--
@@ -562,6 +803,33 @@ Copyright (c) .NET Foundation. All rights reserved.
 
   <!--
     ============================================================
+                _GetAppHostCreationConfiguration
+    Computes the properties for configuration of apphost creation
+    during either build or publish
+    ============================================================
+     -->
+  <Target Name="_GetAppHostCreationConfiguration"
+          Condition="'$(UseAppHost)' == 'true' and '$(_IsExecutable)' == 'true'">
+    <PropertyGroup>
+      <_UseWindowsGraphicalUserInterface Condition="($(RuntimeIdentifier.StartsWith('win')) or $(DefaultAppHostRuntimeIdentifier.StartsWith('win'))) and '$(OutputType)'=='WinExe'">true</_UseWindowsGraphicalUserInterface>
+      <_EnableMacOSCodeSign Condition="'$(_EnableMacOSCodeSign)' == '' and
+                                      ($(RuntimeIdentifier.StartsWith('osx')) or $(AppHostRuntimeIdentifier.StartsWith('osx')))">true</_EnableMacOSCodeSign>
+      <_UseSingleFileHostForPublish Condition="'$(PublishSingleFile)' == 'true' and
+                                               '$(SelfContained)' == 'true' and
+                                               '$(SingleFileHostSourcePath)' != '' and
+                                               '$(TargetFrameworkIdentifier)' == '.NETCoreApp' and
+                                               $([MSBuild]::VersionGreaterThanOrEquals($(TargetFrameworkVersion), 5.0))">true</_UseSingleFileHostForPublish>
+      <_DisableCetCompat Condition="'$(CetCompat)' == 'false'">true</_DisableCetCompat>
+
+      <!-- Default to AppHostDotNetSearch=AppRelative if AppHostRelativeDotNet is set -->
+      <AppHostDotNetSearch Condition="'$(AppHostRelativeDotNet)' != '' and '$(AppHostDotNetSearch)' == ''">AppRelative</AppHostDotNetSearch>
+      <_UpdateAppHostForPublish Condition="'$(_UseSingleFileHostForPublish)' != 'true' and
+                                          ('$(AppHostRelativeDotNet)' != '' or '$(AppHostDotNetSearch)' != '')">true</_UpdateAppHostForPublish>
+    </PropertyGroup>
+  </Target>
+
+  <!--
+    ============================================================
                                         _CreateAppHost
     If we found a restored apphost, create the modified destination apphost
     with options from the project.
@@ -571,17 +839,11 @@ Copyright (c) .NET Foundation. All rights reserved.
   <Target Name="_CreateAppHost"
           Inputs="@(IntermediateAssembly);$(AppHostSourcePath)"
           Outputs="$(AppHostIntermediatePath)"
-          DependsOnTargets="_ChooseAppHost;CoreCompile"
+          DependsOnTargets="_GetAppHostPaths;_GetAppHostCreationConfiguration;CoreCompile"
           Condition="'$(ComputeNETCoreBuildOutputFiles)' == 'true' and
                      '$(AppHostSourcePath)' != '' and
                      Exists('@(IntermediateAssembly)') and
                      Exists('$(AppHostSourcePath)')">
-    <PropertyGroup>
-      <_UseWindowsGraphicalUserInterface Condition="($(RuntimeIdentifier.StartsWith('win')) or $(DefaultAppHostRuntimeIdentifier.StartsWith('win'))) and '$(OutputType)'=='WinExe'">true</_UseWindowsGraphicalUserInterface>
-      <_EnableMacOSCodeSign Condition="'$(_EnableMacOSCodeSign)' == '' and $([MSBuild]::IsOSPlatform(`OSX`)) and Exists('/usr/bin/codesign') and
-                                      ($(RuntimeIdentifier.StartsWith('osx')) or $(AppHostRuntimeIdentifier.StartsWith('osx')))">true</_EnableMacOSCodeSign>
-    </PropertyGroup>
-
     <CreateAppHost AppHostSourcePath="$(AppHostSourcePath)"
                    AppHostDestinationPath="$(AppHostIntermediatePath)"
                    AppBinaryName="$(AssemblyName)$(TargetExt)"
@@ -590,27 +852,8 @@ Copyright (c) .NET Foundation. All rights reserved.
                    Retries="$(CopyRetryCount)"
                    RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
                    EnableMacOSCodeSign="$(_EnableMacOSCodeSign)"
+                   DisableCetCompat="$(_DisableCetCompat)"
                    />
-  </Target>
-
-  <!--
-    ============================================================
-                                        _ChooseAppHost
-      Choose the correct app-host for the build scenario:
-      * SingleFileHost if an app being published as a self-contained single-file .net5+ app
-      * AppHost otherwise
-    ============================================================
-     -->
-  <Target Name="_ChooseAppHost"
-          DependsOnTargets="_GetAppHostPaths"
-          Condition="'$(UseAppHost)' == 'true' and '$(_IsExecutable)' == 'true'">
-    <PropertyGroup Condition="'$(PublishSingleFile)' == 'true' and
-                              '$(SelfContained)' == 'true' and
-                              '$(_TargetFrameworkVersionWithoutV)' >= '5.0' and
-                              '$(SingleFileHostSourcePath)' != ''">
-      <AppHostSourcePath>$(SingleFileHostSourcePath)</AppHostSourcePath>
-      <AppHostIntermediatePath>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)singlefilehost$(_NativeExecutableExtension)'))</AppHostIntermediatePath>
-    </PropertyGroup>
   </Target>
 
   <!--
@@ -634,6 +877,8 @@ Copyright (c) .NET Foundation. All rights reserved.
     </PropertyGroup>
     <PropertyGroup Condition="'$(UseAppHostFromAssetsFile)' == 'false' Or '@(_NativeRestoredAppHostNETCore)' != ''">
       <AppHostIntermediatePath>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)apphost$(_NativeExecutableExtension)'))</AppHostIntermediatePath>
+      <AppHostForPublishIntermediatePath>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)apphost_publish$(_NativeExecutableExtension)'))</AppHostForPublishIntermediatePath>
+      <SingleFileHostIntermediatePath>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)singlefilehost$(_NativeExecutableExtension)'))</SingleFileHostIntermediatePath>
     </PropertyGroup>
 
   </Target>
@@ -749,7 +994,7 @@ Copyright (c) .NET Foundation. All rights reserved.
     ============================================================
     -->
   <Target Name="_ComputeNETCoreBuildOutputFiles"
-          DependsOnTargets="_ChooseAppHost;_GetComHostPaths;_GetIjwHostPaths"
+          DependsOnTargets="_GetAppHostPaths;_GetAppHostCreationConfiguration;_GetComHostPaths;_GetIjwHostPaths"
           BeforeTargets="AssignTargetPaths"
           Condition="'$(ComputeNETCoreBuildOutputFiles)' == 'true'">
 
@@ -765,7 +1010,6 @@ Copyright (c) .NET Foundation. All rights reserved.
         <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       </None>
     </ItemGroup>
-
 
     <ItemGroup Condition="'$(AppHostIntermediatePath)' != '' or '$(_CopyAndRenameDotnetHost)' == 'true'">
       <!--
@@ -882,6 +1126,7 @@ Copyright (c) .NET Foundation. All rights reserved.
     ============================================================
     -->
 
+  <!-- TODO: can we now move all of this into the ComputeRunArguments target, or must this be kept for compat? -->
   <PropertyGroup>
     <RunWorkingDirectory Condition="'$(RunWorkingDirectory)' == ''">$(StartWorkingDirectory)</RunWorkingDirectory>
   </PropertyGroup>
@@ -927,8 +1172,18 @@ Copyright (c) .NET Foundation. All rights reserved.
     <RunWorkingDirectory Condition="'$(RunWorkingDirectory)' != '' and '$([System.IO.Path]::IsPathRooted($(RunWorkingDirectory)))' != 'true'">$([System.IO.Path]::GetFullPath($([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '$(RunWorkingDirectory)'))))</RunWorkingDirectory>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Signals that this project supports the target-based run invocation protocol powered by the ComputeRunArguments target. -->
+    <ProjectCapability Include="SupportsComputeRunCommand" />
+  </ItemGroup>
+  <!-- Placeholder target for tools to override RunCommand/RunArguments/RunWorkingDirectory.
+       This allows tools to run validation or logic required to compute any required data,
+       which cannot be done during evaluation.  -->
+  <Target Name="ComputeRunArguments" />
+
+
   <!-- Override MSBuild Run Target -->
-  <Target Name="Run">
+  <Target Name="Run" DependsOnTargets="ComputeRunArguments">
     <Exec Command="$(RunCommand) $(RunArguments)" WorkingDirectory="$(RunWorkingDirectory)"/>
   </Target>
 
@@ -973,10 +1228,15 @@ Copyright (c) .NET Foundation. All rights reserved.
       <UseSharedCompilation>true</UseSharedCompilation>
     </PropertyGroup>
 
+    <ItemGroup>
+      <_SatelliteAssemblyReferences Remove="@(_SatelliteAssemblyReferences)" />
+      <_SatelliteAssemblyReferences Include="@(ReferencePath)" Condition="'%(Filename)' == 'mscorlib' or '%(Filename)' == 'netstandard' or '%(Filename)' == 'System.Runtime' " />
+    </ItemGroup>
+
     <Csc Resources="@(_SatelliteAssemblyResourceInputs)"
          Sources="$(_AssemblyInfoFile)"
          OutputAssembly="$(_OutputAssembly)"
-         References="@(ReferencePath)"
+         References="@(_SatelliteAssemblyReferences)"
          KeyContainer="$(KeyContainerName)"
          KeyFile="$(KeyOriginatorFile)"
          NoConfig="true"
@@ -984,6 +1244,8 @@ Copyright (c) .NET Foundation. All rights reserved.
          NoStandardLib="$(NoCompilerStandardLib)"
          Optimize="$(Optimize)"
          PublicSign="$(PublicSign)"
+         PathMap="$(PathMap)"
+         Features="$(Features)"
          DelaySign="$(DelaySign)"
          Deterministic="$(Deterministic)"
          DisabledWarnings="$(DisabledWarnings)"
@@ -1097,7 +1359,7 @@ Copyright (c) .NET Foundation. All rights reserved.
     <AdditionalTargetFrameworkInfoProperty Include="ShouldBeValidatedAsExecutableReference"/>
     <AdditionalTargetFrameworkInfoProperty Include="_SelfContainedWasSpecified"/>
   </ItemGroup>
-  
+
   <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
     <!-- Don't generate a NETSDK1151 error if a non self-contained Exe references a Blazor wasm Exe -->
     <ShouldBeValidatedAsExecutableReference>false</ShouldBeValidatedAsExecutableReference>
@@ -1130,9 +1392,7 @@ Copyright (c) .NET Foundation. All rights reserved.
       SelfContained="$(SelfContained)"
       IsExecutable="$(_IsExecutable)"
       ReferencedProjects="@(_MSBuildProjectReferenceExistent)"
-      UseAttributeForTargetFrameworkInfoPropertyNames="$(_UseAttributeForTargetFrameworkInfoPropertyNames)"
-      />
-
+      UseAttributeForTargetFrameworkInfoPropertyNames="$(_UseAttributeForTargetFrameworkInfoPropertyNames)"/>
   </Target>
 
   <!--
@@ -1143,15 +1403,7 @@ Copyright (c) .NET Foundation. All rights reserved.
 
   <Target Name="ValidateCommandLineProperties"
           AfterTargets="_CheckForInvalidConfigurationAndPlatform" >
-
-    <NETSdkWarning Condition="'$(_SelfContainedWasSpecified)' != 'true' and
-                   '$(_CommandLineDefinedRuntimeIdentifier)' == 'true' and
-                   '$(RuntimeIdentifier)' != '' and
-                   '$(PublishAot)' != 'true' and
-                   '$(TargetFrameworkIdentifier)' == '.NETCoreApp' and
-                   $([MSBuild]::VersionGreaterThanOrEquals($(TargetFrameworkVersion), '6.0'))"
-               ResourceName="SelfContainedOptionShouldBeUsedWithRuntime" />
-
+    <!-- Currently a no-op, but we could put things here in the future, so keeping it. -->
   </Target>
 
   <!--
@@ -1164,11 +1416,21 @@ Copyright (c) .NET Foundation. All rights reserved.
     <ProjectCapability Include="CrossPlatformExecutable" />
   </ItemGroup>
 
+  <!-- Native AOT compilation -->
+  <!-- Native AOT properties should be shown by default for projects targeting .NET 8 or higher, except for WPF and WinForms projects -->
+  <ItemGroup Condition="'$(UseWPF)' != 'true'
+             and '$(UseWindowsForms)' != 'true'
+             and '$(TargetFrameworkIdentifier)' == '.NETCoreApp'
+             and $([MSBuild]::VersionGreaterThanOrEquals('$(_TargetFrameworkVersionWithoutV)', '8.0'))">
+    <ProjectCapability Include="NativeAOT"/>
+  </ItemGroup>
+
   <!-- Reference Manager capabilities -->
   <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETCoreApp'">
     <ProjectCapability Remove="ReferenceManagerAssemblies" />
   </ItemGroup>
 
+  <Import Project="$(MSBuildThisFileDirectory)Microsoft.NET.Sdk.SourceLink.targets" Condition="'$(SuppressImplicitGitSourceLink)' != 'true'" />
   <Import Project="$(MSBuildThisFileDirectory)Microsoft.NET.DisableStandardFrameworkResolution.targets" Condition="'$(DisableStandardFrameworkResolution)' == 'true'" />
   <Import Project="$(MSBuildThisFileDirectory)Microsoft.NET.DesignerSupport.targets" />
   <Import Project="$(MSBuildThisFileDirectory)Microsoft.NET.GenerateAssemblyInfo.targets" Condition="'$(UsingNETSdkDefaults)' == 'true'"/>
@@ -1186,8 +1448,8 @@ Copyright (c) .NET Foundation. All rights reserved.
   <Import Project="$(MSBuildThisFileDirectory)Microsoft.NET.Sdk.CSharp.targets" Condition="'$(Language)' == 'C#'" />
   <Import Project="$(MSBuildThisFileDirectory)Microsoft.NET.Sdk.VisualBasic.targets" Condition="'$(Language)' == 'VB'" />
   <Import Project="$(MSBuildThisFileDirectory)Microsoft.NET.Sdk.FSharp.targets" Condition="'$(Language)' == 'F#'" />
-  <Import Project="$(ILCompilerTargetsPath)" Condition="'$(PublishAot)' == 'true'"/>
-  <Import Project="$(ILLinkTargetsPath)" Condition="'$(ILLinkTargetsPath)' != '' And '$(Language)' != 'C++'" />
+  <Import Project="$(ILCompilerTargetsPath)" Condition="'$(ILCompilerTargetsPath)' != '' and '$(PublishAot)' == 'true'"/>
+  <Import Project="$(ILLinkTargetsPath)" Condition="'$(ILLinkTargetsPath)' != '' and '$(Language)' != 'C++'" />
   <Import Project="$(MSBuildThisFileDirectory)Microsoft.NET.Sdk.Analyzers.targets" Condition="'$(Language)' == 'C#' or '$(Language)' == 'VB'" />
 
   <!-- Import WindowsDesktop targets if necessary -->

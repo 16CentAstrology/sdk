@@ -14,7 +14,7 @@
 . ftr VB CB
 . ftr VBI CBI
 .\}
-.TH "dotnet-restore" "1" "2022-11-08" "" ".NET Documentation"
+.TH "dotnet-restore" "1" "2024-10-02" "" ".NET Documentation"
 .hy
 .SH dotnet restore
 .PP
@@ -26,11 +26,13 @@ dotnet-restore - Restores the dependencies and tools of a project.
 .IP
 .nf
 \f[C]
-dotnet restore [<ROOT>] [--configfile <FILE>] [--disable-parallel]
+dotnet restore [<ROOT>] [--configfile <FILE>] [--disable-build-servers]
+    [--disable-parallel]
     [-f|--force] [--force-evaluate] [--ignore-failed-sources]
     [--interactive] [--lock-file-path <LOCK_FILE_PATH>] [--locked-mode]
     [--no-cache] [--no-dependencies] [--packages <PACKAGES_DIRECTORY>]
     [-r|--runtime <RUNTIME_IDENTIFIER>] [-s|--source <SOURCE>]
+    [--tl:[auto|on|off]] [--use-current-runtime, --ucr [true|false]]
     [--use-lock-file] [-v|--verbosity <LEVEL>]
 
 dotnet restore -h|--help
@@ -38,8 +40,13 @@ dotnet restore -h|--help
 .fi
 .SH DESCRIPTION
 .PP
-The \f[V]dotnet restore\f[R] command uses NuGet to restore dependencies as well as project-specific tools that are specified in the project file.
-In most cases, you don\[cq]t need to explicitly use the \f[V]dotnet restore\f[R] command, since a NuGet restore is run implicitly if necessary when you run the following commands:
+A .NET project typically references external libraries in NuGet (https://www.nuget.org) packages that provide additional functionality.
+These external dependencies are referenced in the project file (\f[I].csproj\f[R] or \f[I].vbproj\f[R]).
+When you run the \f[V]dotnet restore\f[R] command, the .NET CLI uses NuGet to look for these dependencies and download them if necessary.
+It also ensures that all the dependencies required by the project are compatible with each other and that there are no conflicts between them.
+Once the command is completed, all the dependencies required by the project are available in a local cache and can be used by the .NET CLI to build and run the application.
+.PP
+In most cases, you don\[cq]t need to explicitly use the \f[V]dotnet restore\f[R] command, since if a NuGet restore is necessary, the following commands run it implicitly:
 .IP \[bu] 2
 \f[V]dotnet new\f[R]
 .IP \[bu] 2
@@ -57,11 +64,11 @@ In most cases, you don\[cq]t need to explicitly use the \f[V]dotnet restore\f[R]
 .PP
 Sometimes, it might be inconvenient to run the implicit NuGet restore with these commands.
 For example, some automated systems, such as build systems, need to call \f[V]dotnet restore\f[R] explicitly to control when the restore occurs so that they can control network usage.
-To prevent the implicit NuGet restore, you can use the \f[V]--no-restore\f[R] flag with any of these commands to disable implicit restore.
+To prevent the implicit NuGet restore, you can use the \f[V]--no-restore\f[R] flag with any of these commands.
 .RS
 .PP
 Signed package verification during restore operations requires a certificate root store that is valid for both code signing and timestamping.
-See NuGet signed package verification for details.
+For more inforomation, see NuGet signed package verification.
 .RE
 .SS Specify feeds
 .PP
@@ -127,6 +134,16 @@ Optional path to the project file to restore.
 .RE
 .SH OPTIONS
 .IP \[bu] 2
+\f[B]\f[VB]-a|--arch <ARCHITECTURE>\f[B]\f[R]
+.RS 2
+.PP
+Specifies the target architecture.
+This is a shorthand syntax for setting the Runtime Identifier (RID), where the provided value is combined with the default RID.
+For example, on a \f[V]win-x64\f[R] machine, specifying \f[V]--arch x86\f[R] sets the RID to \f[V]win-x86\f[R].
+If you use this option, don\[cq]t use the \f[V]-r|--runtime\f[R] option.
+Available since .NET 6 Preview 7.
+.RE
+.IP \[bu] 2
 \f[B]\f[VB]--configfile <FILE>\f[B]\f[R]
 .RS 2
 .PP
@@ -134,6 +151,15 @@ The NuGet configuration file (\f[I]nuget.config\f[R]) to use.
 If specified, only the settings from this file will be used.
 If not specified, the hierarchy of configuration files from the current directory will be used.
 For more information, see Common NuGet Configurations.
+.RE
+.IP \[bu] 2
+\f[B]\f[VB]--disable-build-servers\f[B]\f[R]
+.RS 2
+.PP
+Forces the command to ignore any persistent build servers.
+This option provides a consistent way to disable all use of build caching, which forces a build from scratch.
+A build that doesn\[cq]t rely on caches is useful when the caches might be corrupted or incorrect for some reason.
+Available since .NET 7 SDK.
 .RE
 .IP \[bu] 2
 \f[B]\f[VB]--disable-parallel\f[B]\f[R]
@@ -221,6 +247,42 @@ This setting overrides all of the sources specified in the \f[I]nuget.config\f[R
 Multiple sources can be provided by specifying this option multiple times.
 .RE
 .IP \[bu] 2
+\f[B]\f[VB]--tl:[auto|on|off]\f[B]\f[R]
+.RS 2
+.PP
+Specifies whether the \f[I]terminal logger\f[R] should be used for the build output.
+The default is \f[V]auto\f[R], which first verifies the environment before enabling terminal logging.
+The environment check verifies that the terminal is capable of using modern output features and isn\[cq]t using a redirected standard output before enabling the new logger.
+\f[V]on\f[R] skips the environment check and enables terminal logging.
+\f[V]off\f[R] skips the environment check and uses the default console logger.
+.PP
+The terminal logger shows you the restore phase followed by the build phase.
+During each phase, the currently building projects appear at the bottom of the terminal.
+Each project that\[cq]s building outputs both the MSBuild target currently being built and the amount of time spent on that target.
+You can search this information to learn more about the build.
+When a project is finished building, a single \[lq]build completed\[rq] section is written that captures:
+.IP \[bu] 2
+The name of the built project.
+.IP \[bu] 2
+The target framework (if multi-targeted).
+.IP \[bu] 2
+The status of that build.
+.IP \[bu] 2
+The primary output of that build (which is hyperlinked).
+.IP \[bu] 2
+Any diagnostics generated for that project.
+.PP
+This option is available starting in .NET 8.
+.RE
+.IP \[bu] 2
+\f[B]\f[VB]--use-current-runtime, --ucr [true|false]\f[B]\f[R]
+.RS 2
+.PP
+Sets the \f[V]RuntimeIdentifier\f[R] to a platform portable \f[V]RuntimeIdentifier\f[R] based on the one of your machine.
+This happens implicitly with properties that require a \f[V]RuntimeIdentifier\f[R], such as \f[V]SelfContained\f[R], \f[V]PublishAot\f[R], \f[V]PublishSelfContained\f[R], \f[V]PublishSingleFile\f[R], and \f[V]PublishReadyToRun\f[R].
+If the property is set to false, that implicit resolution will no longer occur.
+.RE
+.IP \[bu] 2
 \f[B]\f[VB]--use-lock-file\f[B]\f[R]
 .RS 2
 .PP
@@ -286,3 +348,29 @@ dotnet restore --verbosity detailed
 \f[R]
 .fi
 .RE
+.SS Audit for security vulnerabilities
+.PP
+Starting in .NET 8, \f[V]dotnet restore\f[R] includes NuGet security auditing.
+This auditing produces a report of security vulnerabilities with the affected package name, the severity of the vulnerability, and a link to the advisory for more details.
+.PP
+To opt out of the security auditing, set the \f[V]<NuGetAudit>\f[R] MSBuild property to \f[V]false\f[R] in your project file.
+.PP
+To retrieve the known vulnerability dataset, ensure that you have the NuGet.org central registry defined as one of your package sources:
+.IP
+.nf
+\f[C]
+<packageSources>
+    <add key=\[dq]nuget.org\[dq] value=\[dq]https://api.nuget.org/v3/index.json\[dq] protocolVersion=\[dq]3\[dq] />
+</packageSources>
+\f[R]
+.fi
+.PP
+You can configure the level at which auditing will fail by setting the \f[V]<NuGetAuditLevel>\f[R] MSBuild property.
+Possible values are \f[V]low\f[R], \f[V]moderate\f[R], \f[V]high\f[R], and \f[V]critical\f[R].
+For example if you only want to see moderate, high, and critical advisories, you can set the property to \f[V]moderate\f[R].
+.PP
+Starting in .NET 9, NuGet audits both \f[I]direct\f[R] and \f[I]transitive\f[R] package references, by default.
+In .NET 8, only \f[I]direct\f[R] package references are audited.
+You can change the mode by setting the \f[V]<NuGetAuditMode>\f[R] MSBuild property to \f[V]direct\f[R] or \f[V]all\f[R].
+.PP
+For more information, see Auditing package dependencies for security vulnerabilities.

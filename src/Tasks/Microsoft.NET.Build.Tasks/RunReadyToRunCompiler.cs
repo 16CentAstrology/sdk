@@ -1,10 +1,5 @@
-﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-using System;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Text;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
 
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
@@ -22,6 +17,7 @@ namespace Microsoft.NET.Build.Tasks
         public ITaskItem[] ImplementationAssemblyReferences { get; set; }
         public ITaskItem[] ReadyToRunCompositeBuildReferences { get; set; }
         public ITaskItem[] ReadyToRunCompositeBuildInput { get; set; }
+        public ITaskItem[] ReadyToRunCompositeUnrootedBuildInput { get; set; }
         public bool ShowCompilerWarnings { get; set; }
         public bool UseCrossgen2 { get; set; }
         public string Crossgen2ExtraCommandLineArgs { get; set; }
@@ -220,7 +216,7 @@ namespace Microsoft.NET.Build.Tasks
 
         private string GetAssemblyReferencesCommands()
         {
-            StringBuilder result = new StringBuilder();
+            StringBuilder result = new();
 
             var references = _createCompositeImage ? ReadyToRunCompositeBuildReferences : ImplementationAssemblyReferences;
 
@@ -270,7 +266,7 @@ namespace Microsoft.NET.Build.Tasks
 
         private string GenerateCrossgenResponseFile()
         {
-            StringBuilder result = new StringBuilder();
+            StringBuilder result = new();
 
             result.AppendLine("/nologo");
 
@@ -300,7 +296,7 @@ namespace Microsoft.NET.Build.Tasks
 
         private string GenerateCrossgen2ResponseFile()
         {
-            StringBuilder result = new StringBuilder();
+            StringBuilder result = new();
 
             string jitPath = Crossgen2Tool.GetMetadata(MetadataKeys.JitPath);
             if (!string.IsNullOrEmpty(jitPath))
@@ -327,7 +323,7 @@ namespace Microsoft.NET.Build.Tasks
                 {
                     result.AppendLine("--perfmap");
                     result.AppendLine($"--perfmap-path:{Path.GetDirectoryName(_outputPDBImage)}");
-                    
+
                     string perfmapFormatVersion = Crossgen2Tool.GetMetadata(MetadataKeys.PerfmapFormatVersion);
                     if (!string.IsNullOrEmpty(perfmapFormatVersion))
                     {
@@ -346,7 +342,7 @@ namespace Microsoft.NET.Build.Tasks
 
             if (!string.IsNullOrEmpty(Crossgen2ExtraCommandLineArgs))
             {
-                foreach (string extraArg in Crossgen2ExtraCommandLineArgs.Split(new char[]{';'}, StringSplitOptions.RemoveEmptyEntries))
+                foreach (string extraArg in Crossgen2ExtraCommandLineArgs.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
                 {
                     result.AppendLine(extraArg);
                 }
@@ -369,6 +365,14 @@ namespace Microsoft.NET.Build.Tasks
                 foreach (var reference in ReadyToRunCompositeBuildInput)
                 {
                     result.AppendLine(reference.ItemSpec);
+                }
+
+                if (ReadyToRunCompositeUnrootedBuildInput != null)
+                {
+                    foreach (var unrooted in ReadyToRunCompositeUnrootedBuildInput)
+                    {
+                        result.AppendLine($"-u:\"{unrooted.ItemSpec}\"");
+                    }
                 }
             }
             else
